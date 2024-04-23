@@ -48,6 +48,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -480,6 +481,23 @@ fun YourScreenContent2(expenseItemEntity: ExpenseItemEntity, onDismiss: () -> Un
 //        ) {
 //            ExpenseDialog(onDismiss)
 //        }
+//    }
+//
+//}
+
+
+//@Preview
+//@Composable
+//fun Logo(){
+//
+//    Row(modifier = Modifier.fillMaxWidth()) {
+//        Image(
+//            painterResource(id = R.drawable.ic_logoo),
+//            contentDescription = "null",
+//            contentScale = ContentScale.Crop,
+//            modifier = Modifier
+//                .size(height = 120.dp, width = 800.dp)
+//        )
 //    }
 //
 //}
