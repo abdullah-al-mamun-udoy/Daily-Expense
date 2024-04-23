@@ -74,7 +74,9 @@ fun OnBoardingScreen(navhost: NavHostController) {
             LaunchedEffect(Unit){
                 delay(500)
                 navhost.navigate(Graph.BottomGraph.route){
-                    popUpTo(Screen.OnBoardingScreen.route)
+                    popUpTo(Screen.OnBoardingScreen.route){
+                        inclusive = true
+                    }
                 }
 
             }

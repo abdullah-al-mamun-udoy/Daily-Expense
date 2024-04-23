@@ -1,5 +1,7 @@
 package com.example.expensenote.navigation
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,6 +15,7 @@ import com.example.expensenote.presentation.screen.onboarding.OnBoardingScreen
 import com.example.expensenote.presentation.screen.splash.SplashScreen
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun SplashScreenNavigation(navHostController: NavHostController) {
 
