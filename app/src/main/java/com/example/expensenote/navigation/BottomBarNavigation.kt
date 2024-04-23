@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.expensenote.presentation.screen.AnalysisScreen.AnalysisScreen
 
 import com.example.expensenote.presentation.screen.setting.SettingScreen
 
@@ -38,6 +39,9 @@ fun BottomBarNavigation(navHostController: NavHostController) {
     {
         composable(Screen.HomeScreen.route) {
             HomeScreen(navhost = navHostController)
+        }
+        composable(Screen.AnalysisScreen.route){
+            AnalysisScreen(navHost = navHostController)
         }
         composable(Screen.SettingScreen.route) {
             SettingScreen(navhost = navHostController)

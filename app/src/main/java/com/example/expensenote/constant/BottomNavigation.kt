@@ -10,9 +10,14 @@ enum class BottomNavigation(
     val level: String
 ) {
     Home(
-        R.drawable.ic_home,
+        R.drawable.ic_records,
         Screen.HomeScreen.route,
-        level="Home"
+        level="Records"
+    ),
+    Analysis(
+        R.drawable.ic_analysis,
+        Screen.AnalysisScreen.route,
+        level="Analytics"
     ),
     Calendar(
         R.drawable.ic_calendar,
