@@ -21,9 +21,11 @@ class ExpenseItemViewModel @Inject constructor(private val dbRepo: DatabaseRepo)
     private val _isLottieVisible = MutableStateFlow(false)
     var isLottieVisible = _isLottieVisible.asStateFlow()
 
-    fun showLottie(){
+    fun showLottie() {
         _isLottieVisible.value = true
-    }fun hideLottie(){
+    }
+
+    fun hideLottie() {
         _isLottieVisible.value = false
     }
 
@@ -36,6 +38,7 @@ class ExpenseItemViewModel @Inject constructor(private val dbRepo: DatabaseRepo)
     fun showModalSheet() {
         _isModalSheetVisible.value = true
     }
+
     fun hideModalSheet() {
         _isModalSheetVisible.value = false
     }
