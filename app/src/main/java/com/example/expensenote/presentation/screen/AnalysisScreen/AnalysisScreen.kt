@@ -54,53 +54,24 @@ fun AnalysisScreen(navHost: NavHostController, viewModel: ExpenseItemViewModel =
 
     val expenseDataListState = viewModel.readAllExpenseList()?.collectAsState(initial = emptyList())
 
-    val list = listOf(
-        ExpenseItemEntity(
+    val expenseDataList = if (expenseDataListState?.value.isNullOrEmpty()) {
+
+        val defaultItem = ExpenseItemEntity(
             id = 0,
-            expenseName = "",
-            expenseAmount = "0",
+            expenseName = "Default Expense",
+            expenseAmount = "133",
             date = "",
-            expenseDescription = ""
-        ),        ExpenseItemEntity(
-            id = 0,
-            expenseName = "",
-            expenseAmount = "0",
-            date = "",
-            expenseDescription = ""
-        ),        ExpenseItemEntity(
-            id = 0,
-            expenseName = "",
-            expenseAmount = "0",
-            date = "",
-            expenseDescription = ""
-        ),        ExpenseItemEntity(
-            id = 0,
-            expenseName = "",
-            expenseAmount = "0",
-            date = "",
-            expenseDescription = ""
-        ),        ExpenseItemEntity(
-            id = 0,
-            expenseName = "",
-            expenseAmount = "0",
-            date = "",
-            expenseDescription = ""
-        ),        ExpenseItemEntity(
-            id = 0,
-            expenseName = "",
-            expenseAmount = "0",
-            date = "",
-            expenseDescription = ""
+            expenseDescription = "Default description"
         )
-    )
+        val repeatCount = 6 //
+        List(repeatCount) { defaultItem }
+    } else {
 
-    Log.d("TAG", "AnalysisScreen: ${list.size}")
+        expenseDataListState?.value
+    }
 
-    // Get the value from the state object
-    val expenseDataList = expenseDataListState?.value ?: list
-    // Provide a default value
-    // if the state is null
-//    Log.d("TAG", "AnalysisScreen: ${expenseDataList.size}")
+    Log.d("TAG", "actual list: ${expenseDataList?.size}")
+
 
     var isEmpty = remember {
         mutableStateOf(false)
@@ -115,12 +86,14 @@ fun AnalysisScreen(navHost: NavHostController, viewModel: ExpenseItemViewModel =
         }
     }
 
-    for (expenseItem in expenseDataList) {
-        val date = expenseItem.date
-        dateList.add(date)
-        val amount = expenseItem.expenseAmount.toFloat()
-        amountList.add(amount)
+    if (expenseDataList != null) {
+        for (expenseItem in expenseDataList) {
+            val date = expenseItem.date
+            dateList.add(date)
+            val amount = expenseItem.expenseAmount.toFloat()
+            amountList.add(amount)
 
+        }
     }
 
 //    val graphAppearance = GraphAppearance(
