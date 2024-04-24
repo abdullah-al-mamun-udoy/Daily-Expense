@@ -49,6 +49,7 @@ import java.util.Locale
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ExpenseDialog(
+
     onDismiss: () -> Unit,
     viewModel: ExpenseItemViewModel = hiltViewModel(),
     initialExpenseName: String = "",
@@ -179,6 +180,8 @@ fun ExpenseDialog(
                                 )
                             )
                             onDismiss()
+                            viewModel.hideLottie()
+
                         },
                         colors = ButtonDefaults.buttonColors(
                             backgroundColor = appColor,

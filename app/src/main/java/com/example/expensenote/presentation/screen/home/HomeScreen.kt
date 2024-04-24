@@ -34,7 +34,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.currentComposer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,14 +53,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Observer
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.expensenote.R
 import com.example.expensenote.database.entities.ExpenseItemEntity
 import com.example.expensenote.ui.composable.ExpenseTemplate
 import com.example.expensenote.ui.theme.appColor
 import com.example.expensenote.viewmodel.ExpenseItemViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @SuppressLint("CoroutineCreationDuringComposition")
@@ -88,32 +97,37 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
 //
 //    var selectedExpenseItem by remember { mutableStateOf<ExpenseItemEntity?>(null) }
 
-    var isModalBottomSheetVisible by remember { mutableStateOf(false) }
+    val isModalBottomSheetVisible by viewModel.isModalSheetVisible.collectAsStateWithLifecycle()
 
-    // DisposableEffect to observe the LiveData
-    DisposableEffect(viewModel.isModalSheetVisible) {
-        val observer = Observer<Boolean> { value ->
-            isModalBottomSheetVisible = value
-        }
-        val liveData = viewModel.isModalSheetVisible
-        liveData.observeForever(observer)
+    val isLottieVisible by viewModel.isLottieVisible.collectAsStateWithLifecycle()
 
-        // Dispose observer when the effect leaves the composition
-        onDispose {
-            liveData.removeObserver(observer)
+    var isEmpty = remember {
+        mutableStateOf(false)
+    }
+    Log.d("Lottie", "Lottie: $isEmpty ")
+    Log.d("Lottie", "size : ${expenseDataList.size} ")
+    if (expenseDataList.size < 1) {
+        LaunchedEffect(key1 = Unit) {
+            delay(150).apply {
+                viewModel.showLottie()
+            }
         }
     }
+
+
+
+
 
     // Access selectedExpenseItem mutableState
     val selectedExpenseItem = viewModel.selectedExpenseItem
 
 //    Log.d("selectedExpenseItem", "HomeScreen: $selectedExpenseItem ")
-
+    Log.d("isModalBottomSheetVisible", "HomeScreen0: $isModalBottomSheetVisible")
 
     if (isModalBottomSheetVisible) {
         ModalBottomSheet(
             sheetState = modalSheetState,
-            onDismissRequest = { isModalBottomSheetVisible = false }
+            onDismissRequest = { viewModel.hideModalSheet() }
         ) {
             Column(
                 verticalArrangement = Arrangement.Center,
@@ -134,21 +148,14 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center // Aligns the Row content to the center horizontally
                 ) {
-                    androidx.compose.material.Button(
+                    Button(
                         onClick = {
-
-                            isModalBottomSheetVisible = !isModalBottomSheetVisible
-
+                            viewModel.hideModalSheet()
                             if (isModalBottomSheetVisible) {
-                                coroutineScope.launch {
-                                    modalSheetState.show()
-                                }
-                            } else {
                                 coroutineScope.launch {
                                     modalSheetState.hide()
                                 }
                             }
-
                         },
                         modifier = Modifier.padding(end = 8.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -165,11 +172,25 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
                         onClick = {
                             Log.d("selectedExpenseItem", "inside viewmodel: $selectedExpenseItem ")
 
+
+                            Log.d(
+                                "isModalBottomSheetVisible",
+                                "HomeScreen1: $isModalBottomSheetVisible"
+                            )
                             viewModel.deleteExpenseItem(selectedExpenseItem!!)
-                            isModalBottomSheetVisible = !isModalBottomSheetVisible
                             coroutineScope.launch {
                                 modalSheetState.hide()
+                                Log.d(
+                                    "isModalBottomSheetVisible",
+                                    "HomeScreen3: $isModalBottomSheetVisible"
+                                )
                             }
+                            viewModel.hideModalSheet()
+
+                            Log.d(
+                                "isModalBottomSheetVisible",
+                                "HomeScreen2: $isModalBottomSheetVisible"
+                            )
 
 
                         },
@@ -224,6 +245,23 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
                     .size(20.dp) // Adjust size as needed
             )
         }
+
+        if (isLottieVisible){
+            Spacer(modifier = Modifier.padding(top = 40.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(320.dp)
+            ) {
+                val composition by rememberLottieComposition(spec = LottieCompositionSpec.RawRes(R.raw.not_found))
+                LottieAnimation(composition = composition, iterations = LottieConstants.IterateForever)
+
+                Text(text = "No record found, Tap Add Expense Button to Add",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+            }
+        }
         Spacer(modifier = Modifier.padding(top = 8.dp))
         Box(modifier = Modifier.fillMaxSize()) {
 
@@ -260,7 +298,10 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
             ) {
-                ActionButton(onClick = { showDialog = true })
+                ActionButton(onClick = {
+                    showDialog = true
+
+                })
 
                 if (showDialog) {
                     YourScreenContent(onDismiss = { showDialog = false })

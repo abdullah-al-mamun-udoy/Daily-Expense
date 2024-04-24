@@ -10,21 +10,34 @@ import com.example.expensenote.database.entities.ExpenseItemEntity
 import com.example.expensenote.repository.DatabaseRepo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 
 
 @HiltViewModel
 class ExpenseItemViewModel @Inject constructor(private val dbRepo: DatabaseRepo) : ViewModel() {
 
+    private val _isLottieVisible = MutableStateFlow(false)
+    var isLottieVisible = _isLottieVisible.asStateFlow()
 
-    private val _isModalSheetVisible = MutableLiveData(false)
-    val isModalSheetVisible: LiveData<Boolean> = _isModalSheetVisible
+    fun showLottie(){
+        _isLottieVisible.value = true
+    }fun hideLottie(){
+        _isLottieVisible.value = false
+    }
+
+    private val _isModalSheetVisible = MutableStateFlow(false)
+    var isModalSheetVisible = _isModalSheetVisible.asStateFlow()
 
 
     var selectedExpenseItem: ExpenseItemEntity? by mutableStateOf(null)
 
     fun showModalSheet() {
         _isModalSheetVisible.value = true
+    }
+    fun hideModalSheet() {
+        _isModalSheetVisible.value = false
     }
 
     fun addExpenseItem(expenseItemEntity: ExpenseItemEntity) {
