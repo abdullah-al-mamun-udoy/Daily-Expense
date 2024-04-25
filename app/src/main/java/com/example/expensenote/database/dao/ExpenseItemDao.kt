@@ -15,8 +15,8 @@ interface ExpenseItemDao {
     @Query(value = "SELECT COUNT(id) FROM ExpenseItem")
     fun GetExpenseAllItemSize(): Int
 
-    @Query(value = "DELETE FROM ExpenseItem WHERE id = :itemId ")
-    fun DeleteExpenseItemById(itemId: Int)
+//    @Query(value = "DELETE FROM ExpenseItem WHERE id = :itemId ")
+//    fun DeleteExpenseItemById(itemId: Int)
 
     @Query(value = "SELECT * FROM ExpenseItem ")
     fun ReadAllExpenseItem():  Flow<List<ExpenseItemEntity>>?
@@ -24,11 +24,15 @@ interface ExpenseItemDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun AddExpenseItem(expenseItemEntity: ExpenseItemEntity)
 
-    @Delete
-    fun DeleteAllItem(expenseItemEntity: ExpenseItemEntity)
+//    @Delete
+//    fun DeleteAllItem(expenseItemEntity: ExpenseItemEntity)
 
     @Delete
     fun DeleteExpenseItem(expenseItemEntity: ExpenseItemEntity)
+
+    @Query("DELETE FROM ExpenseItem")
+    suspend fun DeleteAllExpenseItems()
+
 
     @Update
     fun UpdateExpenseItem(expenseItemEntity: ExpenseItemEntity)

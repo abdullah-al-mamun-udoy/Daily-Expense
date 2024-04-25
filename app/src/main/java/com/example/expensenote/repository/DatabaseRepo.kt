@@ -14,4 +14,6 @@ class DatabaseRepo @Inject constructor( private val db: ExpenseDatabase ) {
     fun DeleteExpenseItem(expenseItemEntity: ExpenseItemEntity) = db.ExpenseItemDao().DeleteExpenseItem(expenseItemEntity)
 
     fun UpdateExpenseItem(expenseItemEntity: ExpenseItemEntity) = db.ExpenseItemDao().UpdateExpenseItem(expenseItemEntity)
+
+    suspend fun DeleteAllExpenseItems() = db.ExpenseItemDao().DeleteAllExpenseItems()
 }

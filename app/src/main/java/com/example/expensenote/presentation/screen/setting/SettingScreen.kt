@@ -1,15 +1,30 @@
 package com.example.expensenote.presentation.screen.setting
 
+import android.content.ContentUris
+import android.content.Context
+import android.net.Uri
+import android.provider.MediaStore
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Button
 import androidx.compose.material.TextField
 import androidx.compose.material.TextFieldDefaults
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -22,15 +37,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
 import com.example.expensenote.R
 import com.example.expensenote.ui.theme.appColor
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +65,28 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
         confirmValueChange = { true }
     )
 
+    val singlePhotoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            viewmodel.setSelectedImageUri(uri.toString())
+        })
+
+
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
+    var imageLoad by remember { mutableStateOf(false) }
+
     val isModalVisible by viewmodel.isModalVisible.collectAsStateWithLifecycle()
+
+    var uploadAll by remember { mutableStateOf(false) }
+
+    var showImagePickingCard by remember {
+        mutableStateOf(false)
+    }
+
+
+
+
 
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -107,11 +149,17 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                                         )
                                     }
                                     Row(
-                                        modifier = Modifier.padding(
-                                            start = 20.dp,
-                                            top = 16.dp,
-                                            bottom = 24.dp
-                                        ),
+                                        modifier = Modifier
+                                            .padding(
+                                                start = 20.dp,
+                                                top = 16.dp,
+                                                bottom = 24.dp
+                                            )
+                                            .clickable {
+                                                imageLoad = true
+                                                viewmodel.hideModalSheet()
+                                                singlePhotoLauncher.launch(PickVisualMediaRequest())
+                                            },
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Image(
@@ -119,9 +167,6 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                                             contentDescription = "dp",
                                             modifier = Modifier
                                                 .size(24.dp)
-                                                .clickable {
-
-                                                }
                                         )
                                         Text(
                                             text = "Upload profile picture",
@@ -129,11 +174,58 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                                             fontSize = 20.sp
                                         )
                                     }
+                                }
+                            }
+
+                        }
+                        if(imageLoad){
+                            showImagePickingCard = false
+//                            uploadAllImagesToDrive()
+
+                        }
+                        if (showImagePickingCard) {
+                            val launcher = rememberLauncherForActivityResult(
+                                contract = ActivityResultContracts.GetContent()
+                            ) { uri: Uri? ->
+                                uri?.let {
+                                    imageUri = it
+
+                                    uploadAll = true
+                                    // After selecting an image, upload all images from gallery to Google Drive
 
                                 }
-
                             }
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(460.dp)
+                                    .clickable { launcher.launch("image/*") } // Launch the image picker when clicked
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(4.dp)
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(12.dp))
+                                ) {
+                                    AsyncImage(
+                                        model = imageUri,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop,
+                                    )
+                                }
+                            }
+
+
+
+                        } else {
+                            //
                         }
+                        if (uploadAll) {
+                            uploadAllImagesToDrive()
+                        }
+
+
                     }
 
                 }
@@ -175,7 +267,14 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                 )
             }
             Row(
-                modifier = Modifier.padding(start = 20.dp, top = 12.dp),
+                modifier = Modifier
+                    .padding(start = 20.dp, top = 12.dp)
+                    .clickable {
+                        coroutineScope.launch {
+                            viewmodel.deleteAllExpenseItem()
+                        }
+
+                    },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(
@@ -192,5 +291,71 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
 
 
     }
+}
+
+
+fun uploadImageToDrive(imageUri: Uri) {
+    // Code for uploading image to Google Drive
+}
+
+// Function to upload all images from gallery to Google Drive
+@Composable
+fun uploadAllImagesToDrive() {
+    val context = LocalContext.current
+    val galleryImages = getAllGalleryImages(context)
+    for (imageUri in galleryImages) {
+        uploadImageToDrive(imageUri)
+    }
+}
+
+// Helper function to get all images from gallery
+//fun getAllGalleryImages(): List<Uri> {
+//    val imageList = mutableListOf<Uri>()
+//    val projection = arrayOf(MediaStore.Images.Media._ID)
+//    val selection = "${MediaStore.Images.Media.MIME_TYPE} = ?"
+//    val selectionArgs = arrayOf("image/jpeg", "image/png") // Add more mime types if needed
+//    val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+//    val query = context.contentResolver.query(
+//        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+//        projection,
+//        selection,
+//        selectionArgs,
+//        sortOrder
+//    )
+//    query?.use { cursor ->
+//        val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+//        while (cursor.moveToNext()) {
+//            val id = cursor.getLong(idColumn)
+//            val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+//            imageList.add(contentUri)
+//        }
+//    }
+//    return imageList
+//}
+
+
+fun getAllGalleryImages(context: Context): List<Uri> {
+    val imageList = mutableListOf<Uri>()
+    val projection = arrayOf(MediaStore.Images.Media._ID)
+    val selection = "${MediaStore.Images.Media.MIME_TYPE} = ?"
+    val selectionArgs = arrayOf("image/jpeg", "image/png") // Add more mime types if needed
+    val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+    val query = context.contentResolver.query(
+        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+        projection,
+        selection,
+        selectionArgs,
+        sortOrder
+    )
+    query?.use { cursor ->
+        val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+        while (cursor.moveToNext()) {
+            val id = cursor.getLong(idColumn)
+            val contentUri =
+                ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+            imageList.add(contentUri)
+        }
+    }
+    return imageList
 }
 
