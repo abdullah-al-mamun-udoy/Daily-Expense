@@ -63,7 +63,7 @@ fun AnalysisScreen(navHost: NavHostController, viewModel: ExpenseItemViewModel =
             date = "",
             expenseDescription = "Default description"
         )
-        val repeatCount = 6 //
+        val repeatCount = 16 //
         List(repeatCount) { defaultItem }
     } else {
 
@@ -73,7 +73,7 @@ fun AnalysisScreen(navHost: NavHostController, viewModel: ExpenseItemViewModel =
     Log.d("TAG", "actual list: ${expenseDataList?.size}")
 
 
-    var isEmpty = remember {
+    val isEmpty = remember {
         mutableStateOf(false)
     }
 
