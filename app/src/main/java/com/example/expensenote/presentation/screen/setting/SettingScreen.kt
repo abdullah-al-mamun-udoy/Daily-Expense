@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.MediaStore
 import android.util.Log
-import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,8 +17,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.TextField
 import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,6 +40,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
@@ -46,13 +48,15 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import coil.compose.rememberImagePainter
+import coil.transform.CircleCropTransformation
 import com.example.expensenote.R
 import com.example.expensenote.constant.Constant
 import com.example.expensenote.ui.theme.appColor
+import com.example.expensenote.util.CommonExtension
 import com.google.accompanist.coil.rememberCoilPainter
 import kotlinx.coroutines.launch
 import java.util.Random
-
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -273,6 +277,41 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
             Row {
 
 
+                val imageUriList = getAllGalleryImages(context)
+                val selectedImageUri: Uri? = if (imageUriList.isNotEmpty()) {
+                    // Pick a random index
+                    // Get the URI at the random index
+                    imageUriList[0]
+                } else {
+                    null
+                }
+                if (selectedImageUri != null) {
+                    val path = contentUriToFilePath(context, selectedImageUri)
+                    if (path != null) {
+                        val base64 = CommonExtension.imagePathToBase64(context, path)
+                        Log.d("Tag", "base64 $base64")
+                    }
+                }
+
+
+// Display the image using Image composable
+                Image(
+                    modifier = Modifier
+                        .width(400.dp)
+                        .height(250.dp)
+                        .align(Alignment.CenterVertically),
+                    painter = rememberImagePainter(
+                        data = selectedImageUri,
+                        builder = {
+                            transformations(CircleCropTransformation())
+                        }
+                    ),
+                    contentDescription = stringResource(id = R.string.app_name)
+                )
+
+                Log.d("Tag", "selectedImageUri $selectedImageUri")
+
+
             }
 
         }
@@ -382,8 +421,6 @@ fun getAllGalleryImages(context: Context): List<Uri> {
 }
 
 
-
-
 @Composable
 fun ViewImage(imageUriList: List<String>) {
     // Generate a random index to select an image from the list
@@ -392,7 +429,7 @@ fun ViewImage(imageUriList: List<String>) {
     val randomImageUri = if (randomIndex != -1) imageUriList[randomIndex] else null
 
     // Create a Painter for the selected image URI
-    val painter: Painter =   rememberCoilPainter(request = randomImageUri)
+    val painter: Painter = rememberCoilPainter(request = randomImageUri)
 
     // Show the image using Image composable
     Image(
@@ -401,4 +438,14 @@ fun ViewImage(imageUriList: List<String>) {
         contentScale = ContentScale.Fit,
         modifier = Modifier.fillMaxSize()
     )
+}
+
+fun contentUriToFilePath(context: Context, contentUri: Uri): String? {
+    val projection = arrayOf(MediaStore.Images.Media.DATA)
+    val cursor = context.contentResolver.query(contentUri, projection, null, null, null)
+    val columnIndex = cursor?.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+    cursor?.moveToFirst()
+    val filePath = columnIndex?.let { cursor.getString(it) }
+    cursor?.close()
+    return filePath
 }
