@@ -82,6 +82,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
+
+
+
     val lottieVersion = "5.2.0"
     implementation("com.airbnb.android:lottie-compose:$lottieVersion")
 
@@ -112,6 +115,7 @@ dependencies {
 
     //coil dependecy
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation ("com.google.accompanist:accompanist-coil:0.15.0")
 
 
 

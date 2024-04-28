@@ -1,9 +1,14 @@
 package com.example.expensenote.presentation.screen.setting
 
+import android.Manifest
+import android.app.Activity
 import android.content.ContentUris
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.MediaStore
+import android.util.Log
+import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,16 +35,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.example.expensenote.R
+import com.example.expensenote.constant.Constant
 import com.example.expensenote.ui.theme.appColor
+import com.google.accompanist.coil.rememberCoilPainter
 import kotlinx.coroutines.launch
+import java.util.Random
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,6 +85,8 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
     var showImagePickingCard by remember {
         mutableStateOf(false)
     }
+
+    val context = LocalContext.current
 
 
 
@@ -144,9 +160,31 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                                                 bottom = 24.dp
                                             )
                                             .clickable {
-                                                imageLoad = true
-                                                viewmodel.hideModalSheet()
-                                                singlePhotoLauncher.launch(PickVisualMediaRequest())
+//                                                imageLoad = true
+//                                                viewmodel.hideModalSheet()
+//                                                singlePhotoLauncher.launch(PickVisualMediaRequest())
+                                                if (ContextCompat.checkSelfPermission(
+                                                        context,
+                                                        Manifest.permission.READ_EXTERNAL_STORAGE
+
+                                                    )
+                                                    != PackageManager.PERMISSION_GRANTED
+                                                ) {
+
+                                                    ActivityCompat.requestPermissions(
+                                                        context as Activity,
+                                                        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
+                                                        Constant.REQUEST_READ_EXTERNAL_STORAGE
+                                                    )
+                                                } else {
+                                                    // Permission has already been granted, proceed with accessing media content
+                                                    // Launch the gallery intent here
+                                                    imageLoad = true
+                                                    viewmodel.hideModalSheet()
+                                                    singlePhotoLauncher.launch(
+                                                        PickVisualMediaRequest()
+                                                    )
+                                                }
                                             },
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
@@ -166,9 +204,10 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                             }
 
                         }
-                        if(imageLoad){
+                        if (imageLoad) {
                             showImagePickingCard = false
-//                            uploadAllImagesToDrive()
+                            getAllGalleryImages(context)
+                            Log.d("TAG", "gallary images number : ${getAllGalleryImages(context)}")
                         }
                     }
                 }
@@ -230,6 +269,12 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                     fontSize = 20.sp
                 )
             }
+
+            Row {
+
+
+            }
+
         }
 
 
@@ -277,17 +322,51 @@ fun uploadAllImagesToDrive() {
 //}
 
 
+//fun getAllGalleryImages(context: Context): List<Uri> {
+//    val imageList = mutableListOf<Uri>()
+//    val projection = arrayOf(MediaStore.Images.Media._ID)
+//    val selection = "${MediaStore.Images.Media.MIME_TYPE} = ?"
+//    val selectionArgs = arrayOf("image/jpeg", "image/png") // Add more mime types if needed
+//    val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+//    val query = context.contentResolver.query(
+//        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+//        projection,
+//        selection,
+//        selectionArgs,
+//        sortOrder
+//    )
+//    query?.use { cursor ->
+//        val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+//        while (cursor.moveToNext()) {
+//            val id = cursor.getLong(idColumn)
+//            val contentUri =
+//                ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+//            imageList.add(contentUri)
+//        }
+//    }
+//    return imageList
+//}
+//
+
+
 fun getAllGalleryImages(context: Context): List<Uri> {
     val imageList = mutableListOf<Uri>()
     val projection = arrayOf(MediaStore.Images.Media._ID)
-    val selection = "${MediaStore.Images.Media.MIME_TYPE} = ?"
-    val selectionArgs = arrayOf("image/jpeg", "image/png") // Add more mime types if needed
+    val selectionArgs = buildString {
+        append("(")
+        append("${MediaStore.Images.Media.MIME_TYPE} = ?")
+        append(" OR ")
+        append("${MediaStore.Images.Media.MIME_TYPE} = ?")
+        // Add more MIME types if needed
+        append(")")
+    }
+    val selectionArgsArray = arrayOf("image/jpeg", "image/png") // Add more mime types if needed
     val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
     val query = context.contentResolver.query(
         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
         projection,
-        selection,
         selectionArgs,
+        selectionArgsArray,
         sortOrder
     )
     query?.use { cursor ->
@@ -302,3 +381,24 @@ fun getAllGalleryImages(context: Context): List<Uri> {
     return imageList
 }
 
+
+
+
+@Composable
+fun ViewImage(imageUriList: List<String>) {
+    // Generate a random index to select an image from the list
+    val random = Random()
+    val randomIndex = if (imageUriList.isNotEmpty()) random.nextInt(imageUriList.size) else -1
+    val randomImageUri = if (randomIndex != -1) imageUriList[randomIndex] else null
+
+    // Create a Painter for the selected image URI
+    val painter: Painter =   rememberCoilPainter(request = randomImageUri)
+
+    // Show the image using Image composable
+    Image(
+        painter = painter,
+        contentDescription = "Image",
+        contentScale = ContentScale.Fit,
+        modifier = Modifier.fillMaxSize()
+    )
+}
