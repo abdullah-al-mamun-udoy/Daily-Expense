@@ -170,7 +170,6 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                                                 if (ContextCompat.checkSelfPermission(
                                                         context,
                                                         Manifest.permission.READ_EXTERNAL_STORAGE
-
                                                     )
                                                     != PackageManager.PERMISSION_GRANTED
                                                 ) {

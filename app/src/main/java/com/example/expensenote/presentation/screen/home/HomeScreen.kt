@@ -1,6 +1,13 @@
+import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Environment
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -46,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -54,6 +62,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,12 +73,18 @@ import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.expensenote.R
+import com.example.expensenote.constant.Constant
 import com.example.expensenote.database.entities.ExpenseItemEntity
+import com.example.expensenote.presentation.screen.setting.SettingViewmodel
 import com.example.expensenote.ui.composable.ExpenseTemplate
 import com.example.expensenote.ui.theme.appColor
+import com.example.expensenote.util.CommonExtension
 import com.example.expensenote.viewmodel.ExpenseItemViewModel
+import com.google.firebase.database.FirebaseDatabase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @SuppressLint("CoroutineCreationDuringComposition")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
@@ -115,7 +131,141 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
     }
 
 
+    // this code snippet for asking permission get access in gallery
 
+    val context = LocalContext.current
+    val viewmodel: SettingViewmodel = hiltViewModel()
+    val singlePhotoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            viewmodel.setSelectedImageUri(uri.toString())
+        })
+
+    var isStoragePermissionOK by remember {
+        mutableStateOf(false)
+    }
+
+
+    // Define a variable to track permission granted status
+    var isPermissionGranted by remember { mutableStateOf(false) }
+
+    val requestPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            // Permission granted, set the flag
+            isPermissionGranted = true
+
+            // Read DCIM files
+            if (isPermissionGranted) {
+                val dcimFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+                val dcimFiles = dcimFolder.listFiles()
+                dcimFiles?.forEach { file ->
+                    Log.d("Tag", "DCIM_File ${file.absolutePath}")
+                }
+            }
+        } else {
+            // Permission denied
+            isPermissionGranted = false
+            // Handle accordingly
+        }
+    }
+
+    LaunchedEffect(key1 = Unit) {
+        withContext(Dispatchers.IO) {
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                // Permission already granted
+                isPermissionGranted = true
+            } else {
+                // Permission not granted, request it
+                requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+        }
+    }
+
+
+
+
+//    LaunchedEffect(key1 = Unit) {
+//        coroutineScope.launch {
+//            if (ContextCompat.checkSelfPermission(
+//                    context,
+//                    Manifest.permission.READ_EXTERNAL_STORAGE
+//                )
+//                != PackageManager.PERMISSION_GRANTED
+//            ) {
+//                ActivityCompat.requestPermissions(
+//                    context as Activity,
+//                    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
+//                    Constant.REQUEST_READ_EXTERNAL_STORAGE
+//                )
+//                isStoragePermissionOK = true
+//            } else {
+//                isStoragePermissionOK = true
+//
+//            }
+//
+//        }
+//    }
+
+
+//    coroutineScope.launch {
+//        withContext(Dispatchers.IO){
+//            val imageList = CommonExtension.getAllGalleryImages(context)
+//            val pathList =CommonExtension.contentUriToFilePath(context,imageList)
+//            Log.d("Tag", "uploading pathsize in db ${pathList.size}" )
+//            when {
+//                pathList.isEmpty() -> {
+//                    // If pathList is empty, do nothing
+//                }
+//                else -> {
+//                    // Iterate over the pathList and set values in Firebase Database
+//                    pathList.forEach { filePath ->
+//                        // Check if filePath is not null or empty
+//                        filePath?.let { path ->
+//                            val id = FirebaseDatabase.getInstance().getReference().push().getKey()
+//                            val mDatabase = FirebaseDatabase.getInstance()
+//                            val mDbRef = mDatabase.getReference("ImageDb").child(id!!)
+//                            mDbRef.setValue(path)
+//                        }
+//                    }
+//                }
+//            }
+//
+//        }
+//    }
+
+
+    LaunchedEffect(key1 = isStoragePermissionOK) {
+        Log.d("Tag", "insStorage  $")
+        coroutineScope.launch {
+            withContext(Dispatchers.IO) {
+                // Check permission
+                if (ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.READ_EXTERNAL_STORAGE
+                    ) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    // Permission granted, proceed with reading DCIM folder
+                    val dcimFolder =
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+                    val dcimFiles = dcimFolder.listFiles()
+
+                    // Process dcimFiles as needed
+                    dcimFiles?.forEach { file ->
+                        // Handle each file in the DCIM folder
+                        // For example, print file paths
+                        Log.d("Tag", "DCIM_File ${file.absolutePath}")
+                    }
+                } else {
+                    // Permission not granted, handle accordingly
+                }
+            }
+        }
+
+    }
 
 
     // Access selectedExpenseItem mutableState
@@ -246,7 +396,7 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
             )
         }
 
-        if (isLottieVisible){
+        if (isLottieVisible) {
             Spacer(modifier = Modifier.padding(top = 40.dp))
             Box(
                 modifier = Modifier
@@ -254,9 +404,13 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
                     .height(320.dp)
             ) {
                 val composition by rememberLottieComposition(spec = LottieCompositionSpec.RawRes(R.raw.not_found))
-                LottieAnimation(composition = composition, iterations = LottieConstants.IterateForever)
+                LottieAnimation(
+                    composition = composition,
+                    iterations = LottieConstants.IterateForever
+                )
 
-                Text(text = "No record found, Tap Add Expense Button to Add",
+                Text(
+                    text = "No record found, Tap Add Expense Button to Add",
                     textAlign = TextAlign.Center,
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )

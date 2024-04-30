@@ -1,7 +1,13 @@
 package com.example.expensenote.presentation.screen.main
 
 import ExpenseDialog
+import android.Manifest
+import android.app.Activity
+import android.content.pm.PackageManager
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -30,9 +36,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.example.expensenote.constant.Constant
 import com.example.expensenote.navigation.BottomBarNavigation
+import com.example.expensenote.presentation.screen.setting.SettingViewmodel
 import com.example.expensenote.ui.composable.BackgroundImage
 import com.example.expensenote.ui.composable.ExpenseTemplate
 import com.example.expensenote.ui.theme.appColor
@@ -41,6 +53,7 @@ import com.example.expensenote.ui.theme.appColor
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainScreen(navHostController: NavHostController) {
+
     val scaffoldState = rememberScaffoldState()
     var showDialog by remember { mutableStateOf(false) }
 

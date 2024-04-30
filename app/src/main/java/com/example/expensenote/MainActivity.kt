@@ -13,12 +13,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.navigation.compose.rememberNavController
-import com.example.expensenote.model.User
 import com.example.expensenote.navigation.SplashScreenNavigation
 import com.example.expensenote.ui.theme.ExpenseNoteTheme
-import com.google.firebase.Firebase
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.database
 import dagger.hilt.android.AndroidEntryPoint
 
 
@@ -30,16 +26,10 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
 
-        lateinit var database: DatabaseReference
-// ...
-        database = Firebase.database.reference
 
-        fun writeNewUser(id: Int, imageUrl: String) {
-            val user = User(0, "abc")
-            database.child("users").child(id.toString()).setValue(user)
-        }
 
-        writeNewUser(1, "gh")
+
+
 
         setContent {
             ExpenseNoteTheme {
