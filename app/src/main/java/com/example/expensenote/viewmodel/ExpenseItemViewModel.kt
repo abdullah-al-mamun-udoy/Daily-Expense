@@ -29,6 +29,10 @@ class ExpenseItemViewModel @Inject constructor(private val dbRepo: DatabaseRepo)
         _isLottieVisible.value = false
     }
 
+    fun updateLottieVisibility(expenseList: List<ExpenseItemEntity>) {
+        _isLottieVisible.value = expenseList.isEmpty()
+    }
+
     private val _isModalSheetVisible = MutableStateFlow(false)
     var isModalSheetVisible = _isModalSheetVisible.asStateFlow()
 

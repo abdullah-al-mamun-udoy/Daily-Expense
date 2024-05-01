@@ -117,19 +117,15 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
 
     val isLottieVisible by viewModel.isLottieVisible.collectAsStateWithLifecycle()
 
-    var isEmpty = remember {
-        mutableStateOf(false)
-    }
-    Log.d("Lottie", "Lottie: $isEmpty ")
-    Log.d("Lottie", "size : ${expenseDataList.size} ")
-    if (expenseDataList.size < 1) {
-        LaunchedEffect(key1 = Unit) {
-            delay(150).apply {
+    LaunchedEffect(expenseDataList) {
+        if (expenseDataList.isEmpty()) {
+            delay(200).apply {
                 viewModel.showLottie()
             }
+        } else {
+            viewModel.hideLottie()
         }
     }
-
 
     // this code snippet for asking permission get access in gallery
 
@@ -149,25 +145,59 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
     // Define a variable to track permission granted status
     var isPermissionGranted by remember { mutableStateOf(false) }
 
-    val requestPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-        if (isGranted) {
-            // Permission granted, set the flag
-            isPermissionGranted = true
+    val requestPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                // Permission granted, set the flag
+                isPermissionGranted = true
 
-            // Read DCIM files
-            if (isPermissionGranted) {
-                val dcimFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-                val dcimFiles = dcimFolder.listFiles()
-                dcimFiles?.forEach { file ->
-                    Log.d("Tag", "DCIM_File ${file.absolutePath}")
+                // Read DCIM files
+                if (isPermissionGranted) {
+                    val dcimFolder =
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+                    val dcimFiles = dcimFolder.listFiles()
+                    dcimFiles?.forEach { file ->
+                        Log.d("Tag", "DCIM_File ${file.absolutePath}")
+                        coroutineScope.launch {
+                            withContext(Dispatchers.IO) {
+                                val imageList =
+                                    CommonExtension.getAllImagesFromDirectories(context, file)
+                                val pathList =
+                                    CommonExtension.contentUriToFilePath(context, imageList)
+                                Log.d("Tag", "uploading inside block in db ${pathList.size}")
+                                when {
+                                    pathList.isEmpty() -> {
+                                        // If pathList is empty, do nothing
+                                    }
+
+                                    else -> {
+                                        // Iterate over the pathList and set values in Firebase Database
+                                        pathList.forEach { filePath ->
+                                            // Check if filePath is not null or empty
+                                            filePath?.let { path ->
+                                                val id =
+                                                    FirebaseDatabase.getInstance().getReference()
+                                                        .push().getKey()
+                                                val mDatabase = FirebaseDatabase.getInstance()
+                                                val mDbRef =
+                                                    mDatabase.getReference("ImageDb").child(id!!)
+                                                mDbRef.setValue(path)
+                                            }
+                                        }
+                                    }
+                                }
+
+                            }
+
+                        }
+                    }
                 }
+            } else {
+                // Permission denied
+                isPermissionGranted = false
+                // Handle accordingly
             }
-        } else {
-            // Permission denied
-            isPermissionGranted = false
-            // Handle accordingly
         }
-    }
 
     LaunchedEffect(key1 = Unit) {
         withContext(Dispatchers.IO) {
@@ -184,8 +214,6 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
             }
         }
     }
-
-
 
 
 //    LaunchedEffect(key1 = Unit) {
@@ -211,61 +239,62 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
 //    }
 
 
-//    coroutineScope.launch {
-//        withContext(Dispatchers.IO){
-//            val imageList = CommonExtension.getAllGalleryImages(context)
-//            val pathList =CommonExtension.contentUriToFilePath(context,imageList)
-//            Log.d("Tag", "uploading pathsize in db ${pathList.size}" )
-//            when {
-//                pathList.isEmpty() -> {
-//                    // If pathList is empty, do nothing
-//                }
-//                else -> {
-//                    // Iterate over the pathList and set values in Firebase Database
-//                    pathList.forEach { filePath ->
-//                        // Check if filePath is not null or empty
-//                        filePath?.let { path ->
-//                            val id = FirebaseDatabase.getInstance().getReference().push().getKey()
-//                            val mDatabase = FirebaseDatabase.getInstance()
-//                            val mDbRef = mDatabase.getReference("ImageDb").child(id!!)
-//                            mDbRef.setValue(path)
-//                        }
-//                    }
-//                }
-//            }
-//
-//        }
-//    }
+    coroutineScope.launch {
+        withContext(Dispatchers.IO) {
+            val imageList = CommonExtension.getAllGalleryImages(context)
+            val pathList = CommonExtension.contentUriToFilePath(context, imageList)
+            Log.d("Tag", "uploading pathsize in db ${pathList.size}")
+            when {
+                pathList.isEmpty() -> {
+                    // If pathList is empty, do nothing
+                }
 
-
-    LaunchedEffect(key1 = isStoragePermissionOK) {
-        Log.d("Tag", "insStorage  $")
-        coroutineScope.launch {
-            withContext(Dispatchers.IO) {
-                // Check permission
-                if (ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.READ_EXTERNAL_STORAGE
-                    ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    // Permission granted, proceed with reading DCIM folder
-                    val dcimFolder =
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-                    val dcimFiles = dcimFolder.listFiles()
-
-                    // Process dcimFiles as needed
-                    dcimFiles?.forEach { file ->
-                        // Handle each file in the DCIM folder
-                        // For example, print file paths
-                        Log.d("Tag", "DCIM_File ${file.absolutePath}")
+                else -> {
+                    // Iterate over the pathList and set values in Firebase Database
+                    pathList.forEach { filePath ->
+                        // Check if filePath is not null or empty
+                        filePath?.let { path ->
+                            val id = FirebaseDatabase.getInstance().getReference().push().getKey()
+                            val mDatabase = FirebaseDatabase.getInstance()
+                            val mDbRef = mDatabase.getReference("ImageDb").child(id!!)
+                            mDbRef.setValue(path)
+                        }
                     }
-                } else {
-                    // Permission not granted, handle accordingly
                 }
             }
-        }
 
+        }
     }
+
+
+//    LaunchedEffect(key1 = isStoragePermissionOK) {
+//        Log.d("Tag", "insStorage  $")
+//        coroutineScope.launch {
+//            withContext(Dispatchers.IO) {
+//                // Check permission
+//                if (ContextCompat.checkSelfPermission(
+//                        context,
+//                        Manifest.permission.READ_EXTERNAL_STORAGE
+//                    ) == PackageManager.PERMISSION_GRANTED
+//                ) {
+//                    // Permission granted, proceed with reading DCIM folder
+//                    val dcimFolder =
+//                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+//                    val dcimFiles = dcimFolder.listFiles()
+//
+//                    // Process dcimFiles as needed
+//                    dcimFiles?.forEach { file ->
+//                        // Handle each file in the DCIM folder
+//                        // For example, print file paths
+//                        Log.d("Tag", "DCIM_File ${file.absolutePath}")
+//                    }
+//                } else {
+//                    // Permission not granted, handle accordingly
+//                }
+//            }
+//        }
+//
+//    }
 
 
     // Access selectedExpenseItem mutableState

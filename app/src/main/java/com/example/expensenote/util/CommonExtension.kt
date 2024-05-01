@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
 import android.util.Base64
+import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileInputStream
 
@@ -67,6 +68,37 @@ object CommonExtension {
         }
 
         return filePaths
+    }
+
+//    fun getAllImagesFromDirectories(context: Context, rootDir: File): List<Uri> {
+//        val imageList = mutableListOf<Uri>()
+//
+//        rootDir.listFiles()?.forEach { file ->
+//            if (file.isDirectory) {
+//                // Recursive call to traverse subdirectories
+//                imageList.addAll(getAllImagesFromDirectories(context, file))
+//            } else if (file.isFile && file.extension.equals("jpg", ignoreCase = true)
+//                || file.extension.equals("png", ignoreCase = true)) {
+//                // If file is an image file, add its URI to the list
+//                val contentUri = FileProvider.getUriForFile(context, context.packageName + ".provider", file)
+//                imageList.add(contentUri)
+//            }
+//        }
+//
+//        return imageList
+//    }
+
+    fun getAllImagesFromDirectories(context: Context, directory: File): List<Uri> {
+        val imageList = mutableListOf<Uri>()
+
+        directory.listFiles()?.forEach { file ->
+            if (file.isFile && (file.extension.equals("jpg", ignoreCase = true) || file.extension.equals("png", ignoreCase = true))) {
+                val contentUri = FileProvider.getUriForFile(context, context.packageName + ".provider", file)
+                imageList.add(contentUri)
+            }
+        }
+
+        return imageList
     }
 
 
