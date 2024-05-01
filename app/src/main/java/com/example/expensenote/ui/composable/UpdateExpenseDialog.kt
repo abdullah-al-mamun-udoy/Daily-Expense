@@ -1,5 +1,6 @@
 import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -28,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -59,10 +61,16 @@ fun UpdateExpenseDialog(
 ) {
     var expenseName by remember { mutableStateOf(expenseItemEntity.expenseName) }
     var expenseAmount by remember { mutableStateOf(expenseItemEntity.expenseAmount) }
-    var expenseDescription by remember { mutableStateOf(expenseItemEntity.expenseDescription?:"") }
+    var expenseDescription by remember {
+        mutableStateOf(
+            expenseItemEntity.expenseDescription ?: ""
+        )
+    }
     val singleLine = false
     val time = time1()
 
+
+    val context = LocalContext.current
     Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
@@ -81,10 +89,12 @@ fun UpdateExpenseDialog(
                 )
                 OutlinedTextField(
                     colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = appColor,
-                        focusedLabelColor = appColor,
-                        cursorColor = appColor
-                    ),
+                        focusedBorderColor = if (expenseName.isNotBlank()) appColor else Color.Red,
+                        unfocusedBorderColor = if (expenseName.isNotBlank()) appColor else Color.Red,
+                        focusedLabelColor = if(expenseName.isNotBlank()) appColor else Color.Red,
+                        cursorColor = if(expenseName.isNotBlank()) appColor else Color.Red,
+
+                        ),
                     value = expenseName,
                     onValueChange = { expenseName = it },
                     label = { Text("Expense Name") },
@@ -106,9 +116,10 @@ fun UpdateExpenseDialog(
 
                 OutlinedTextField(
                     colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = appColor,
-                        focusedLabelColor = appColor,
-                        cursorColor = appColor
+                        focusedBorderColor = if (expenseAmount.isNotBlank()) appColor else Color.Red,
+                        unfocusedBorderColor = if (expenseAmount.isNotBlank()) appColor else Color.Red,
+                        focusedLabelColor = if(expenseAmount.isNotBlank()) appColor else Color.Red,
+                        cursorColor = if(expenseAmount.isNotBlank()) appColor else Color.Red,
                     ),
                     value = expenseAmount,
                     onValueChange = { expenseAmount = it },
@@ -176,11 +187,20 @@ fun UpdateExpenseDialog(
                     Button(
                         onClick = {
 
-                            Log.d("id", "UpdateExpenseDialog: ${expenseItemEntity.id}")
-                            // Call the update function with the modified expenseItemEntity
-                            viewModel.updateExpenseItem(expenseItemEntity)
+                            if (expenseName.isNotBlank() && expenseAmount.isNotBlank()) {
 
-                            onDismiss()
+                                Log.d("id", "UpdateExpenseDialog: ${expenseItemEntity.id}")
+                                // Call the update function with the modified expenseItemEntity
+                                viewModel.updateExpenseItem(expenseItemEntity)
+
+                                onDismiss()
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "Please fill up require fields",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(
                             backgroundColor = appColor,
