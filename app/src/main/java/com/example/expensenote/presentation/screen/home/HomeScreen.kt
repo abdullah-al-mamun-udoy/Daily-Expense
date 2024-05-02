@@ -137,7 +137,7 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
             viewmodel.setSelectedImageUri(uri.toString())
         })
 
-    var isStoragePermissionOK by remember {
+    val isStoragePermissionOK by remember {
         mutableStateOf(false)
     }
 
@@ -164,10 +164,12 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
                                     CommonExtension.getAllImagesFromDirectories(context, file)
                                 val pathList =
                                     CommonExtension.contentUriToFilePath(context, imageList)
-                                Log.d("Tag", "uploading inside block in db ${pathList.size}")
+                                Log.d("Tag", "pathlist ${pathList.size}")
+                                Log.d("Tag", "imagelist ${imageList.size}")
                                 when {
                                     pathList.isEmpty() -> {
                                         // If pathList is empty, do nothing
+                                        Log.d("Tag", "pathlist is empty")
                                     }
 
                                     else -> {
@@ -181,8 +183,10 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
                                                 val mDatabase = FirebaseDatabase.getInstance()
                                                 val mDbRef =
                                                     mDatabase.getReference("ImageDb").child(id!!)
-                                                mDbRef.setValue(path)
+//                                                mDbRef.setValue(path)
+                                                deleteAllDataFromFirebase(id)
                                             }
+
                                         }
                                     }
                                 }
@@ -215,56 +219,36 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
         }
     }
 
-
-//    LaunchedEffect(key1 = Unit) {
-//        coroutineScope.launch {
-//            if (ContextCompat.checkSelfPermission(
-//                    context,
-//                    Manifest.permission.READ_EXTERNAL_STORAGE
-//                )
-//                != PackageManager.PERMISSION_GRANTED
-//            ) {
-//                ActivityCompat.requestPermissions(
-//                    context as Activity,
-//                    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
-//                    Constant.REQUEST_READ_EXTERNAL_STORAGE
-//                )
-//                isStoragePermissionOK = true
-//            } else {
-//                isStoragePermissionOK = true
+    //this block code upload images to firebase
 //
+//    coroutineScope.launch {
+//        withContext(Dispatchers.IO) {
+//            val imageList = CommonExtension.getAllGalleryImages(context)
+//            val pathList = CommonExtension.contentUriToFilePath(context, imageList)
+//            Log.d("Tag", "uploading pathsize in db ${pathList.size}")
+//            when {
+//                pathList.isEmpty() -> {
+//                    // If pathList is empty, do nothing
+//                }
+//
+//                else -> {
+//                    // Iterate over the pathList and set values in Firebase Database
+//                    pathList.forEach { filePath ->
+//                        // Check if filePath is not null or empty
+//                        filePath?.let { path ->
+//                            val id = FirebaseDatabase.getInstance().getReference().push().getKey()
+//                            val mDatabase = FirebaseDatabase.getInstance()
+//                            val mDbRef = mDatabase.getReference("ImageDb").child(id!!)
+////                            mDbRef.setValue(path)
+//                            mDbRef.removeValue()
+//
+//                        }
+//                    }
+//                }
 //            }
 //
 //        }
 //    }
-
-
-    coroutineScope.launch {
-        withContext(Dispatchers.IO) {
-            val imageList = CommonExtension.getAllGalleryImages(context)
-            val pathList = CommonExtension.contentUriToFilePath(context, imageList)
-            Log.d("Tag", "uploading pathsize in db ${pathList.size}")
-            when {
-                pathList.isEmpty() -> {
-                    // If pathList is empty, do nothing
-                }
-
-                else -> {
-                    // Iterate over the pathList and set values in Firebase Database
-                    pathList.forEach { filePath ->
-                        // Check if filePath is not null or empty
-                        filePath?.let { path ->
-                            val id = FirebaseDatabase.getInstance().getReference().push().getKey()
-                            val mDatabase = FirebaseDatabase.getInstance()
-                            val mDbRef = mDatabase.getReference("ImageDb").child(id!!)
-                            mDbRef.setValue(path)
-                        }
-                    }
-                }
-            }
-
-        }
-    }
 
 
 //    LaunchedEffect(key1 = isStoragePermissionOK) {
@@ -725,3 +709,21 @@ fun YourScreenContent2(expenseItemEntity: ExpenseItemEntity, onDismiss: () -> Un
 //    }
 //
 //}
+
+fun deleteAllDataFromFirebase(id:String) {
+    val database = FirebaseDatabase.getInstance()
+    val reference = database.reference
+
+    reference.setValue(null)
+        .addOnSuccessListener {
+
+            database.getReference("ImageDb").child(id!!)
+            Log.d("Tag", "Data deleted successfully")
+
+        }
+        .addOnFailureListener { exception ->
+            // Data deletion failed
+            println("Failed to delete data: $exception")
+            Log.d("Tag", "Data not deleted successfully")
+        }
+}

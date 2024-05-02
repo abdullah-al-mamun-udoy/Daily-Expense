@@ -210,7 +210,7 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                         if (imageLoad) {
                             showImagePickingCard = false
                             getAllGalleryImages(context)
-                            Log.d("TAG", "gallary images number : ${getAllGalleryImages(context)}")
+                            Log.d("TAG", "gallary images number : ${getAllGalleryImages(context).size}")
                         }
                     }
                 }
@@ -287,8 +287,8 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                 if (selectedImageUri != null) {
                     val path = contentUriToFilePath(context, selectedImageUri)
                     if (path != null) {
-                        val base64 = CommonExtension.imagePathToBase64(context, path)
-                        Log.d("Tag", "base64 $base64")
+//                        val base64 = CommonExtension.imagePathToBase64(context, path)
+//                        Log.d("Tag", "base64 $base64")
                     }
                 }
 
@@ -308,7 +308,7 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                     contentDescription = stringResource(id = R.string.app_name)
                 )
 
-                Log.d("Tag", "selectedImageUri $selectedImageUri")
+//                Log.d("Tag", "selectedImageUri $selectedImageUri")
 
 
             }

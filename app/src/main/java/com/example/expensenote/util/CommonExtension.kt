@@ -3,11 +3,14 @@ package com.example.expensenote.util
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import android.util.Base64
+import android.util.Log
 import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileOutputStream
 
 object CommonExtension {
 
@@ -56,18 +59,36 @@ object CommonExtension {
 
     fun contentUriToFilePath(context: Context, contentUris: List<Uri>): List<String?> {
         val filePaths = mutableListOf<String?>()
-        val projection = arrayOf(MediaStore.Images.Media.DATA)
 
         contentUris.forEach { contentUri ->
-            val cursor = context.contentResolver.query(contentUri, projection, null, null, null)
-            val columnIndex = cursor?.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-            cursor?.moveToFirst()
-            val filePath = columnIndex?.let { cursor.getString(it) }
-            cursor?.close()
+            // Create a temporary file in the app's cache directory
+            val tempFile = File.createTempFile("temp_", ".jpg", context.cacheDir)
+
+            // Open an input stream from the content URI
+            val inputStream = context.contentResolver.openInputStream(contentUri)
+            inputStream?.use { input ->
+                // Copy the input stream to the temporary file
+                FileOutputStream(tempFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            // Get the absolute file path of the temporary file
+            val filePath = tempFile.absolutePath
             filePaths.add(filePath)
         }
 
         return filePaths
+    }
+
+    fun contentUriToFilePath(context: Context, contentUri: Uri): String? {
+        val projection = arrayOf(MediaStore.Images.Media.DATA)
+        val cursor = context.contentResolver.query(contentUri, projection, null, null, null)
+        val columnIndex = cursor?.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+        cursor?.moveToFirst()
+        val filePath = columnIndex?.let { cursor.getString(it) }
+        cursor?.close()
+        return filePath
     }
 
 //    fun getAllImagesFromDirectories(context: Context, rootDir: File): List<Uri> {
@@ -91,15 +112,56 @@ object CommonExtension {
     fun getAllImagesFromDirectories(context: Context, directory: File): List<Uri> {
         val imageList = mutableListOf<Uri>()
 
-        directory.listFiles()?.forEach { file ->
-            if (file.isFile && (file.extension.equals("jpg", ignoreCase = true) || file.extension.equals("png", ignoreCase = true))) {
-                val contentUri = FileProvider.getUriForFile(context, context.packageName + ".provider", file)
-                imageList.add(contentUri)
+        try {
+            directory.listFiles()?.forEach { file ->
+                if (file.isFile && (file.extension.equals("jpg", ignoreCase = true) || file.extension.equals("png", ignoreCase = true))) {
+                    val contentUri = FileProvider.getUriForFile(context, context.packageName + ".provider", file)
+                    imageList.add(contentUri)
+                }
             }
+        } catch (e: Exception) {
+            // Log any errors or exceptions
+            Log.e("Tag", "Error getting images from directory: ${e.message}")
         }
 
         return imageList
     }
+
+
+//
+//
+//    fun contentUriToFilePath(context: Context, contentUris: List<Uri>): List<String?> {
+//        val filePaths = mutableListOf<String?>()
+//        val projection = arrayOf(
+//            when {
+//                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> MediaStore.Images.Media._ID
+//                else -> MediaStore.Images.Media.DATA
+//            }
+//        )
+//
+//        contentUris.forEach { contentUri ->
+//            val cursor = context.contentResolver.query(contentUri, projection, null, null, null)
+//            cursor?.use { cursor ->
+//                if (cursor.moveToFirst()) {
+//                    val columnIndex = cursor.getColumnIndexOrThrow(
+//                        when {
+//                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> MediaStore.Images.Media._ID
+//                            else -> MediaStore.Images.Media.DATA
+//                        }
+//                    )
+//                    val filePath = cursor.getString(columnIndex)
+//                    filePaths.add(filePath)
+//                } else {
+//                    // Handle the case where cursor is empty
+//                    Log.e("contentUriToFilePath", "Cursor is empty")
+//                    filePaths.add(null)
+//                }
+//            }
+//        }
+//
+//        return filePaths
+//    }
+//
 
 
 
