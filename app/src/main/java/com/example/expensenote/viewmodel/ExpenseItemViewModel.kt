@@ -1,17 +1,21 @@
 package com.example.expensenote.viewmodel
 
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.expensenote.database.entities.ExpenseItemEntity
 import com.example.expensenote.repository.DatabaseRepo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 
@@ -27,10 +31,6 @@ class ExpenseItemViewModel @Inject constructor(private val dbRepo: DatabaseRepo)
 
     fun hideLottie() {
         _isLottieVisible.value = false
-    }
-
-    fun updateLottieVisibility(expenseList: List<ExpenseItemEntity>) {
-        _isLottieVisible.value = expenseList.isEmpty()
     }
 
     private val _isModalSheetVisible = MutableStateFlow(false)
@@ -62,4 +62,5 @@ class ExpenseItemViewModel @Inject constructor(private val dbRepo: DatabaseRepo)
     fun readAllExpenseList(): Flow<List<ExpenseItemEntity>>? {
         return dbRepo.ReadAllExpenseList()
     }
+
 }

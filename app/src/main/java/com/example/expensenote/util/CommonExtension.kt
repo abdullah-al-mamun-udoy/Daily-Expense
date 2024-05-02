@@ -3,7 +3,6 @@ package com.example.expensenote.util
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
-import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Base64
@@ -15,13 +14,29 @@ import java.io.FileOutputStream
 
 object CommonExtension {
 
-    fun imagePathToBase64(ctx: Context, imagePath: String): String {
-        val file = File(imagePath)
-        val inputStream = FileInputStream(file)
-        val bytes = inputStream.readBytes()
-        inputStream.close()
-        return Base64.encodeToString(bytes, Base64.NO_WRAP)
+//    fun imagePathToBase64(ctx: Context, imagePath: String): String {
+//        val file = File(imagePath)
+//        val inputStream = FileInputStream(file)
+//        val bytes = inputStream.readBytes()
+//        inputStream.close()
+//        return Base64.encodeToString(bytes, Base64.NO_WRAP)
+//    }
+
+    fun imagePathToBase64(ctx: Context, imagePaths: List<String?>): List<String> {
+        val base64List = mutableListOf<String>()
+
+        for (imagePath in imagePaths) {
+            val file = File(imagePath)
+            val inputStream = FileInputStream(file)
+            val bytes = inputStream.readBytes()
+            inputStream.close()
+            val base64String = Base64.encodeToString(bytes, Base64.NO_WRAP)
+            base64List.add(base64String)
+        }
+
+        return base64List
     }
+
     fun String.toUri(): Uri {
         return Uri.parse(this)
     }

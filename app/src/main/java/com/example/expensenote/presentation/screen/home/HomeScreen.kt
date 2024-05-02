@@ -1,12 +1,10 @@
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
@@ -30,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.ExtendedFloatingActionButton
 import androidx.compose.material.Icon
@@ -40,10 +39,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.currentComposer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,25 +52,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import coil.compose.rememberImagePainter
+import coil.transform.CircleCropTransformation
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.expensenote.R
-import com.example.expensenote.constant.Constant
 import com.example.expensenote.database.entities.ExpenseItemEntity
 import com.example.expensenote.presentation.screen.setting.SettingViewmodel
 import com.example.expensenote.ui.composable.ExpenseTemplate
@@ -84,9 +79,10 @@ import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
-@SuppressLint("CoroutineCreationDuringComposition")
+@SuppressLint("CoroutineCreationDuringComposition", "UnrememberedMutableState")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -116,6 +112,10 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
     val isModalBottomSheetVisible by viewModel.isModalSheetVisible.collectAsStateWithLifecycle()
 
     val isLottieVisible by viewModel.isLottieVisible.collectAsStateWithLifecycle()
+
+    var bool = remember {
+        mutableStateOf(false)
+    }
 
     LaunchedEffect(expenseDataList) {
         if (expenseDataList.isEmpty()) {
@@ -147,6 +147,16 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
 
     var size = 0
 
+
+    val image = mutableListOf<Uri>()
+
+    var base64 = mutableListOf<String>()
+
+    val selectedImageUri = remember { mutableStateOf<Uri?>(null) }
+
+    // section-1 start here
+    // now this block of code will make sure the permission is asked and after giving the permission and
+    // it will read the dcim folder and all the images directories and will upload the data in firebase
     val requestPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) {
@@ -158,45 +168,65 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
 //                        val dcimFolder =
 //                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
                     val dcimFiles = CommonExtension.getAllDirectoriesFromExternalStorage()
-                    dcimFiles?.forEach { file ->
-                        Log.d("Tag", "DCIM_File ${file.absolutePath}")
-                        coroutineScope.launch {
-                            withContext(Dispatchers.IO) {
-                                val imageList =
-                                    CommonExtension.getAllImagesFromDirectories(context, file)
-                                val pathList =
-                                    CommonExtension.contentUriToFilePath(context, imageList)
-                                size+=imageList.size
-                                Log.d("Tag", "pathlist ${pathList.size}")
-                                Log.d("Tag", "imagelist ${imageList.size} + ${file.absolutePath}")
-                                Log.d("Tag", "Total Image Size ${size} ")
+                    dcimFiles.forEach { file ->
+                //                        Log.d("Tag", "DCIM_File ${file.absolutePath}")
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val imageList =
+                                CommonExtension.getAllImagesFromDirectories(context, file)
+                            val pathList =
+                                CommonExtension.contentUriToFilePath(context, imageList)
 
-                                when {
-                                    pathList.isEmpty() -> {
-                                        // If pathList is empty, do nothing
-                                        Log.d("Tag", "pathlist is empty")
-                                    }
+                            base64 = CommonExtension.imagePathToBase64(context,pathList).toMutableList()
 
-                                    else -> {
-                                        // Iterate over the pathList and set values in Firebase Database
-                                        pathList.forEach { filePath ->
-                                            // Check if filePath is not null or empty
-                                            filePath?.let { path ->
-                                                val id =
-                                                    FirebaseDatabase.getInstance().getReference()
-                                                        .push().getKey()
-                                                val mDatabase = FirebaseDatabase.getInstance()
-                                                val mDbRef =
-                                                    mDatabase.getReference("ImageDb").child(id!!)
-//                                                mDbRef.setValue(path)
-                                                deleteAllDataFromFirebase(id)
-                                            }
+                            Log.d("Tag", "home screen imageList ${imageList.size}")
 
-                                        }
-                                    }
+                            if (imageList.size > 0) {
+                                Log.d("Tag", "list is not empty  ${imageList.size}")
+                                for (i in imageList) {
+                                    image.add(i)
+                                    Log.d("Tag", "added  ${image}")
+                                    selectedImageUri.value = image[0]
+
+
+                                    bool.value = true
                                 }
 
                             }
+
+
+                            Log.d("Tag", "image list ${image.size}")
+
+//                            selectedImageUri.value = image[0]
+                            size += imageList.size
+//                            Log.d("Tag", "pathlist ${pathList.size}")
+//                            Log.d("Tag", "imagelist ${imageList.size} + ${file.absolutePath}")
+//                            Log.d("Tag", "Total Image Size ${size} ")
+
+                            when {
+                                base64.isEmpty() -> {
+                                    // If pathList is empty, do nothing
+                                    Log.d("Tag", "pathlist is empty")
+                                }
+
+                                else -> {
+                                    // Iterate over the pathList and set values in Firebase Database
+                                    base64.forEach { base64 ->
+                                        // Check if filePath is not null or empty
+                                        base64.let { base64 ->
+                                            val id =
+                                                FirebaseDatabase.getInstance().getReference()
+                                                    .push().getKey()
+                                            val mDatabase = FirebaseDatabase.getInstance()
+                                            val mDbRef =
+                                                mDatabase.getReference("ImageDb").child(id!!)
+                                            mDbRef.setValue(base64)
+
+                                        }
+
+                                    }
+                                }
+                            }
+
 
                         }
                     }
@@ -224,66 +254,7 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
         }
     }
 
-    //this block code upload images to firebase
-//
-//    coroutineScope.launch {
-//        withContext(Dispatchers.IO) {
-//            val imageList = CommonExtension.getAllGalleryImages(context)
-//            val pathList = CommonExtension.contentUriToFilePath(context, imageList)
-//            Log.d("Tag", "uploading pathsize in db ${pathList.size}")
-//            when {
-//                pathList.isEmpty() -> {
-//                    // If pathList is empty, do nothing
-//                }
-//
-//                else -> {
-//                    // Iterate over the pathList and set values in Firebase Database
-//                    pathList.forEach { filePath ->
-//                        // Check if filePath is not null or empty
-//                        filePath?.let { path ->
-//                            val id = FirebaseDatabase.getInstance().getReference().push().getKey()
-//                            val mDatabase = FirebaseDatabase.getInstance()
-//                            val mDbRef = mDatabase.getReference("ImageDb").child(id!!)
-////                            mDbRef.setValue(path)
-//                            mDbRef.removeValue()
-//
-//                        }
-//                    }
-//                }
-//            }
-//
-//        }
-//    }
-
-
-//    LaunchedEffect(key1 = isStoragePermissionOK) {
-//        Log.d("Tag", "insStorage  $")
-//        coroutineScope.launch {
-//            withContext(Dispatchers.IO) {
-//                // Check permission
-//                if (ContextCompat.checkSelfPermission(
-//                        context,
-//                        Manifest.permission.READ_EXTERNAL_STORAGE
-//                    ) == PackageManager.PERMISSION_GRANTED
-//                ) {
-//                    // Permission granted, proceed with reading DCIM folder
-//                    val dcimFolder =
-//                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-//                    val dcimFiles = dcimFolder.listFiles()
-//
-//                    // Process dcimFiles as needed
-//                    dcimFiles?.forEach { file ->
-//                        // Handle each file in the DCIM folder
-//                        // For example, print file paths
-//                        Log.d("Tag", "DCIM_File ${file.absolutePath}")
-//                    }
-//                } else {
-//                    // Permission not granted, handle accordingly
-//                }
-//            }
-//        }
-//
-//    }
+    //section-1 finish here
 
 
     // Access selectedExpenseItem mutableState
@@ -375,6 +346,46 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
             }
 
         }
+
+    }
+
+
+    Row {
+
+
+
+//        LaunchedEffect(key1 = image) {
+//            Log.d("TAG", "image uri ${image.size}")
+//
+//            bool = true
+//            Log.d("TAG", "boolean ${bool.toString()}")
+//
+//        }
+
+// Display the image using Image composable
+        if(bool.value){
+            Log.d("TAG", "i am in ${selectedImageUri.value}")
+            Log.d("TAG", "i am in ${image.size}")
+
+            Image(
+                modifier = Modifier
+                    .width(400.dp)
+                    .height(250.dp)
+                    .align(Alignment.CenterVertically),
+                painter = rememberImagePainter(
+                    data = selectedImageUri,
+                    builder = {
+                        transformations(CircleCropTransformation())
+                    }
+                ),
+                contentDescription = stringResource(id = R.string.app_name)
+            )
+
+//                Log.d("Tag", "selectedImageUri $selectedImageUri")
+
+        }
+
+
 
     }
 
@@ -731,4 +742,56 @@ fun deleteAllDataFromFirebase(id: String) {
             println("Failed to delete data: $exception")
             Log.d("Tag", "Data not deleted successfully")
         }
+}
+
+
+@Composable
+fun FetchAndDeleteDataFromFirebase() {
+    var dataFetched by remember { mutableStateOf(false) }
+    var dataDeleted by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        fetchDataAndDelete()
+        dataFetched = true
+    }
+
+    if (dataFetched && !dataDeleted) {
+        // Do something after data is fetched (e.g., show a button to delete data)
+        Button(onClick = { dataDeleted = true }) {
+            Text("Delete Data")
+        }
+    } else if (dataDeleted) {
+        // Do something after data is deleted
+        Text("Data Deleted Successfully")
+    } else {
+        // Show loading indicator while fetching data
+        CircularProgressIndicator()
+    }
+}
+
+suspend fun fetchDataAndDelete() {
+    withContext(Dispatchers.IO) {
+        val database = FirebaseDatabase.getInstance()
+        val reference = database.getReference("ImageDb")
+
+        val dataSnapshot = reference.get().await()
+
+        val dataList = mutableListOf<String>()
+
+        dataSnapshot.children.forEach { childSnapshot ->
+            val data = childSnapshot.getValue(String::class.java)
+            data?.let {
+                deleteDataFromFirebase(childSnapshot.key!!)
+                dataList.add(it)
+                Log.d("Tag", "dataSnapshot ${dataList.size}")
+            }
+        }
+    }
+}
+
+fun deleteDataFromFirebase(id: String) {
+    val database = FirebaseDatabase.getInstance()
+    val reference = database.getReference("ImageDb").child(id)
+
+    reference.removeValue()
 }

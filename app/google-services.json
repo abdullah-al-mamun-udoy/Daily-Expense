@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "893526486909",
-    "project_id": "dailyexpense-4ba62",
-    "storage_bucket": "dailyexpense-4ba62.appspot.com"
+    "project_number": "827760960450",
+    "project_id": "daily-expense-8fa40",
+    "storage_bucket": "daily-expense-8fa40.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:893526486909:android:3d9b7d56a4be1c366ae614",
+        "mobilesdk_app_id": "1:827760960450:android:b9d955aa4eeb0756adec5b",
         "android_client_info": {
           "package_name": "com.example.expensenote"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyARBAic8wUWe_NwwnaNJRs3T1_QCP7pagw"
+          "current_key": "AIzaSyCazpD8SnYMA78jJbqOzYaqsxSp0Z_mO38"
         }
       ],
       "services": {

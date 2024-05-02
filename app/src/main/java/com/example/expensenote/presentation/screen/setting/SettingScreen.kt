@@ -28,6 +28,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +55,7 @@ import com.example.expensenote.R
 import com.example.expensenote.constant.Constant
 import com.example.expensenote.ui.theme.appColor
 import com.example.expensenote.util.CommonExtension
+import com.example.expensenote.viewmodel.ExpenseItemViewModel
 import com.google.accompanist.coil.rememberCoilPainter
 import kotlinx.coroutines.launch
 import java.util.Random
@@ -61,7 +63,11 @@ import java.util.Random
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hiltViewModel()) {
+fun SettingScreen(
+    navhost: NavHostController,
+    viewmodel: SettingViewmodel = hiltViewModel(),
+    viewModel: ExpenseItemViewModel = hiltViewModel()
+) {
 
     var name by remember { mutableStateOf("") }
 
@@ -210,7 +216,10 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                         if (imageLoad) {
                             showImagePickingCard = false
                             getAllGalleryImages(context)
-                            Log.d("TAG", "gallary images number : ${getAllGalleryImages(context).size}")
+                            Log.d(
+                                "TAG",
+                                "gallary images number : ${getAllGalleryImages(context).size}"
+                            )
                         }
                     }
                 }
@@ -272,6 +281,7 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                     fontSize = 20.sp
                 )
             }
+            val imageList = viewModel.image
 
             Row {
 
@@ -281,6 +291,8 @@ fun SettingScreen(navhost: NavHostController, viewmodel: SettingViewmodel = hilt
                     // Pick a random index
                     // Get the URI at the random index
                     imageUriList[0]
+
+
                 } else {
                     null
                 }
