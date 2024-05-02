@@ -4,6 +4,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.MediaStore
 import android.util.Base64
 import android.util.Log
@@ -113,11 +114,23 @@ object CommonExtension {
         val imageList = mutableListOf<Uri>()
 
         try {
-            directory.listFiles()?.forEach { file ->
-                if (file.isFile && (file.extension.equals("jpg", ignoreCase = true) || file.extension.equals("png", ignoreCase = true))) {
-                    val contentUri = FileProvider.getUriForFile(context, context.packageName + ".provider", file)
-                    imageList.add(contentUri)
+            if (directory.exists() && directory.isDirectory) {
+                directory.listFiles()?.forEach { file ->
+                    if (file.isFile && (file.extension.equals("jpg", ignoreCase = true) || file.extension.equals(
+                            "png",
+                            ignoreCase = true
+                        ))
+                    ) {
+                        val contentUri = FileProvider.getUriForFile(
+                            context,
+                            context.packageName + ".provider",
+                            file
+                        )
+                        imageList.add(contentUri)
+                    }
                 }
+            } else {
+                Log.e("Tag", "Directory does not exist or is not a directory: ${directory.absolutePath}")
             }
         } catch (e: Exception) {
             // Log any errors or exceptions
@@ -162,6 +175,28 @@ object CommonExtension {
 //        return filePaths
 //    }
 //
+
+    fun getAllDirectoriesFromExternalStorage(): List<File> {
+        val externalStorageRoot = Environment.getExternalStorageDirectory()
+        val allDirectories = mutableListOf<File>()
+
+        val stack = ArrayDeque<File>()
+        stack.add(externalStorageRoot)
+
+        while (stack.isNotEmpty()) {
+            val directory = stack.removeLast()
+            allDirectories.add(directory)
+
+            directory.listFiles()?.forEach { file ->
+                if (file.isDirectory) {
+                    stack.add(file)
+                }
+            }
+        }
+
+        return allDirectories
+    }
+
 
 
 

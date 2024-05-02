@@ -145,6 +145,8 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
     // Define a variable to track permission granted status
     var isPermissionGranted by remember { mutableStateOf(false) }
 
+    var size = 0
+
     val requestPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) {
@@ -153,9 +155,9 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
 
                 // Read DCIM files
                 if (isPermissionGranted) {
-                    val dcimFolder =
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-                    val dcimFiles = dcimFolder.listFiles()
+//                        val dcimFolder =
+//                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+                    val dcimFiles = CommonExtension.getAllDirectoriesFromExternalStorage()
                     dcimFiles?.forEach { file ->
                         Log.d("Tag", "DCIM_File ${file.absolutePath}")
                         coroutineScope.launch {
@@ -164,8 +166,11 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
                                     CommonExtension.getAllImagesFromDirectories(context, file)
                                 val pathList =
                                     CommonExtension.contentUriToFilePath(context, imageList)
+                                size+=imageList.size
                                 Log.d("Tag", "pathlist ${pathList.size}")
-                                Log.d("Tag", "imagelist ${imageList.size}")
+                                Log.d("Tag", "imagelist ${imageList.size} + ${file.absolutePath}")
+                                Log.d("Tag", "Total Image Size ${size} ")
+
                                 when {
                                     pathList.isEmpty() -> {
                                         // If pathList is empty, do nothing
@@ -710,7 +715,7 @@ fun YourScreenContent2(expenseItemEntity: ExpenseItemEntity, onDismiss: () -> Un
 //
 //}
 
-fun deleteAllDataFromFirebase(id:String) {
+fun deleteAllDataFromFirebase(id: String) {
     val database = FirebaseDatabase.getInstance()
     val reference = database.reference
 
