@@ -131,10 +131,11 @@ object CommonExtension {
         try {
             if (directory.exists() && directory.isDirectory) {
                 directory.listFiles()?.forEach { file ->
-                    if (file.isFile && (file.extension.equals("jpg", ignoreCase = true) || file.extension.equals(
-                            "png",
-                            ignoreCase = true
-                        ))
+                    if (file.isFile && (file.extension.equals("jpg", ignoreCase = true)
+                                || file.extension.equals("jpeg", ignoreCase = true)
+                                || file.extension.equals("png", ignoreCase = true)
+                                || file.extension.equals("webp", ignoreCase = true)
+                            )
                     ) {
                         val contentUri = FileProvider.getUriForFile(
                             context,

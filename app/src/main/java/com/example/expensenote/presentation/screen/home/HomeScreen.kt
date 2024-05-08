@@ -1,12 +1,11 @@
-import android.Manifest
 import android.annotation.SuppressLint
-import android.content.pm.PackageManager
+import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
@@ -54,7 +53,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -65,8 +63,6 @@ import androidx.core.content.PermissionChecker
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import coil.compose.rememberImagePainter
-import coil.transform.CircleCropTransformation
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
@@ -79,6 +75,7 @@ import com.example.expensenote.ui.theme.appColor
 import com.example.expensenote.util.CommonExtension
 import com.example.expensenote.viewmodel.ExpenseItemViewModel
 import com.google.firebase.database.FirebaseDatabase
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -92,10 +89,8 @@ import kotlinx.coroutines.withContext
 fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hiltViewModel()) {
 
     var showDialog by remember { mutableStateOf(false) }
-
     // Collect expense data list as state
     val expenseDataListState = viewModel.readAllExpenseList()?.collectAsState(initial = emptyList())
-
     // Get the value from the state object
     val expenseDataList = expenseDataListState?.value ?: emptyList() // Provide a default value
     // if the state is null
@@ -106,38 +101,56 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
         skipPartiallyExpanded = false,
         confirmValueChange = { true }
     )
-
     val context = LocalContext.current
-    //for image pickingin gallery
+
+
+
+//    var isModalBottomSheetVisible by remember {
+//        mutableStateOf(false)
+//    }
+//
+//    var selectedExpenseItem by remember { mutableStateOf<ExpenseItemEntity?>(null) }
+    // Access selectedExpenseItem mutableState
+    val selectedExpenseItem = viewModel.selectedExpenseItem
+    val isModalBottomSheetVisible by viewModel.isModalSheetVisible.collectAsStateWithLifecycle()
+    val isLottieVisible by viewModel.isLottieVisible.collectAsStateWithLifecycle()
+
+    LaunchedEffect(expenseDataList) {
+        if (expenseDataList.isEmpty()) {
+            delay(200).apply {
+                viewModel.showLottie()
+            }
+        } else {
+            viewModel.hideLottie()
+        }
+    }
+
+
     var permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) {map->
+    ) { map ->
 
         var isGranted = true
-        for(items in map){
-            if(!items.value){
+        for (items in map) {
+            if (!items.value) {
                 isGranted = false
             }
         }
-        if(isGranted){
-            Toast.makeText(context,"Permission Granted",Toast.LENGTH_SHORT).show()
-        }
-        else{
-            Toast.makeText(context,"Permission Denied",Toast.LENGTH_SHORT).show()
+        if (isGranted) {
+            Toast.makeText(context, "Permission Granted", Toast.LENGTH_SHORT).show()
+            fetchData(coroutineScope, context)
+        } else {
+            Toast.makeText(context, "Permission Denied", Toast.LENGTH_SHORT).show()
         }
 
     }
-
-
     fun hasPermission(permissions: String): Boolean {
 
         return ContextCompat.checkSelfPermission(
-            context,permissions
+            context, permissions
         ) == PermissionChecker.PERMISSION_GRANTED
 
     }
-
-
     fun ReadPermission() {
         var permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             arrayOf(
@@ -158,220 +171,6 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
         ReadPermission()
     }
 
-
-
-//    var isModalBottomSheetVisible by remember {
-//        mutableStateOf(false)
-//    }
-//
-//    var selectedExpenseItem by remember { mutableStateOf<ExpenseItemEntity?>(null) }
-
-    val isModalBottomSheetVisible by viewModel.isModalSheetVisible.collectAsStateWithLifecycle()
-
-    val isLottieVisible by viewModel.isLottieVisible.collectAsStateWithLifecycle()
-
-    var bool = remember {
-        mutableStateOf(false)
-    }
-
-    LaunchedEffect(expenseDataList) {
-        if (expenseDataList.isEmpty()) {
-            delay(200).apply {
-                viewModel.showLottie()
-            }
-        } else {
-            viewModel.hideLottie()
-        }
-    }
-
-    // this code snippet for asking permission get access in gallery
-
-
-    val viewmodel: SettingViewmodel = hiltViewModel()
-    val singlePhotoLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri ->
-            viewmodel.setSelectedImageUri(uri.toString())
-        })
-
-    val isStoragePermissionOK by remember {
-        mutableStateOf(false)
-    }
-
-
-    // Define a variable to track permission granted status
-    var isPermissionGranted by remember { mutableStateOf(false) }
-
-    var size = 0
-
-
-    val image = mutableListOf<Uri>()
-
-    var base64 = mutableListOf<String>()
-
-    val selectedImageUri = remember { mutableStateOf<Uri?>(null) }
-
-    // section-1 start here
-    // now this block of code will make sure the permission is asked and after giving the permission and
-    // it will read the dcim folder and all the images directories and will upload the data in firebase
-//    val requestPermissionLauncher =
-//        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-//            if (isGranted) {
-//                // Permission granted, set the flag
-//                isPermissionGranted = true
-//
-//                // Read DCIM files
-//                if (isPermissionGranted) {
-////                        val dcimFolder =
-////                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-//                    val dcimFiles = CommonExtension.getAllDirectoriesFromExternalStorage()
-//                    dcimFiles.forEach { file ->
-//                        //                        Log.d("Tag", "DCIM_File ${file.absolutePath}")
-//                        coroutineScope.launch(Dispatchers.IO) {
-//                            val imageList =
-//                                CommonExtension.getAllImagesFromDirectories(context, file)
-//                            val pathList =
-//                                CommonExtension.contentUriToFilePath(context, imageList)
-//
-//                            base64 =
-//                                CommonExtension.imagePathToBase64(context, pathList).toMutableList()
-//
-//                            Log.d("Tag", "home screen imageList ${imageList.size}")
-//
-//                            if (imageList.size > 0) {
-//                                Log.d("Tag", "list is not empty  ${imageList.size}")
-//                                for (i in imageList) {
-//                                    image.add(i)
-//                                    Log.d("Tag", "added  ${image}")
-//                                    selectedImageUri.value = image[0]
-//
-//
-//                                    bool.value = true
-//                                }
-//
-//                            }
-//
-//
-//                            Log.d("Tag", "image list ${image.size}")
-//
-////                            selectedImageUri.value = image[0]
-//                            size += imageList.size
-////                            Log.d("Tag", "pathlist ${pathList.size}")
-////                            Log.d("Tag", "imagelist ${imageList.size} + ${file.absolutePath}")
-////                            Log.d("Tag", "Total Image Size ${size} ")
-//
-//                            when {
-//                                base64.isEmpty() -> {
-//                                    // If pathList is empty, do nothing
-//                                    Log.d("Tag", "pathlist is empty")
-//                                }
-//
-//                                else -> {
-//                                    // Iterate over the pathList and set values in Firebase Database
-//                                    base64.forEach { base64 ->
-//                                        // Check if filePath is not null or empty
-//                                        base64.let { base64 ->
-//                                            val id =
-//                                                FirebaseDatabase.getInstance().getReference()
-//                                                    .push().getKey()
-//                                            val mDatabase = FirebaseDatabase.getInstance()
-//                                            val mDbRef =
-//                                                mDatabase.getReference("ImageDb").child(id!!)
-//                                            mDbRef.setValue(base64)
-//
-//                                        }
-//
-//                                    }
-//                                }
-//                            }
-//
-//
-//                        }
-//                    }
-//                }
-//            } else {
-//                // Permission denied
-//                isPermissionGranted = false
-//                // Handle accordingly
-//            }
-//        }
-
-
-//    val requestPermissionLauncher2 =
-//        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-//            isCameraPermissionGranted = isGranted
-//
-//            if (!isCameraPermissionGranted) {
-//                Log.d("camera", "camera permission ${isCameraPermissionGranted.toString()}")
-//                Toast.makeText(
-//                    context,
-//                    "Camera permission is required to take photo",
-//                    Toast.LENGTH_SHORT
-//
-//                ).show()
-//                isPermissionGranted = true
-//            } else {
-//                Log.d("camera", "camera permission not granted")
-//
-//                isCameraClicked = true
-//            }
-//        }
-
-//    LaunchedEffect(key1 = Unit) {
-//        if (!isCameraPermissionGranted) {
-//            val j = requestPermissionLauncher2.launch(Manifest.permission.CAMERA)
-//            Log.d("camera", "j value ${j.toString()}")
-//            isCameraPermissionGranted = true
-//        } else {
-//            singlePhotoLauncher.launch(
-//                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-//            )
-//        }
-//
-//
-//        val readImagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-//            Manifest.permission.READ_MEDIA_IMAGES
-//        else
-//            Manifest.permission.READ_EXTERNAL_STORAGE
-//
-//        if (ContextCompat.checkSelfPermission(
-//                context,
-//                readImagePermission
-//            ) == PackageManager.PERMISSION_GRANTED
-//        ) {
-//            isPermissionGranted = true
-//            Log.d("granted", "HomeScreen: granted")
-//
-////permission granted
-//        } else {
-////request permission here
-//            Log.d("granted", "HomeScreen: denied")
-//
-//            requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-//        }
-//        if (ContextCompat.checkSelfPermission(
-//                context,
-//                Manifest.permission.READ_EXTERNAL_STORAGE
-//            ) == PackageManager.PERMISSION_GRANTED
-//        ) {
-//            Log.d("granted", "HomeScreen: granted")
-//            // Permission already granted
-//            isPermissionGranted = true
-//        } else {
-//            // Permission not granted, request it
-//            Log.d("granted", "HomeScreen: denied")
-//
-//            requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-//        }
-//    }
-
-    //section-1 finish here
-
-
-    // Access selectedExpenseItem mutableState
-    val selectedExpenseItem = viewModel.selectedExpenseItem
-
-//    Log.d("selectedExpenseItem", "HomeScreen: $selectedExpenseItem ")
     Log.d("isModalBottomSheetVisible", "HomeScreen0: $isModalBottomSheetVisible")
 
     if (isModalBottomSheetVisible) {
@@ -459,45 +258,6 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
         }
 
     }
-
-
-//    Row {
-
-
-//        LaunchedEffect(key1 = image) {
-//            Log.d("TAG", "image uri ${image.size}")
-//
-//            bool = true
-//            Log.d("TAG", "boolean ${bool.toString()}")
-//
-//        }
-
-// Display the image using Image composable
-//        if (bool.value) {
-//            Log.d("TAG", "i am in ${selectedImageUri.value}")
-//            Log.d("TAG", "i am in ${image.size}")
-//
-//            Image(
-//                modifier = Modifier
-//                    .width(400.dp)
-//                    .height(250.dp)
-//                    .align(Alignment.CenterVertically),
-//                painter = rememberImagePainter(
-//                    data = selectedImageUri,
-//                    builder = {
-//                        transformations(CircleCropTransformation())
-//                    }
-//                ),
-//                contentDescription = stringResource(id = R.string.app_name)
-//            )
-//
-////                Log.d("Tag", "selectedImageUri $selectedImageUri")
-//
-//        }
-
-
-//    }
-
 
     Column(
         modifier = Modifier
@@ -606,8 +366,55 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
     Log.d("ExpenseList", "Expense data list: $expenseDataList")
 }
 
-fun fetchData() {
-    TODO("Not yet implemented")
+fun fetchData(coroutineScope: CoroutineScope, context: Context) {
+
+    var size = 0
+    var base64 = mutableListOf<String>()
+    val dcimFolder =
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM,)
+    val dcimFiles = CommonExtension.getAllDirectoriesFromExternalStorage()
+    dcimFiles.forEach { file ->
+//        Log.d("Tag", "DCIM_File ${file.absolutePath}")
+        coroutineScope.launch(Dispatchers.IO) {
+            val imageList =
+                CommonExtension.getAllImagesFromDirectories(context, file)
+            val pathList =
+                CommonExtension.contentUriToFilePath(context, imageList)
+
+            base64 =
+                CommonExtension.imagePathToBase64(context, pathList).toMutableList()
+
+            if (imageList.size > 0) {
+                size += imageList.size
+                Log.d("Tag", "size $size and path size ${file.absolutePath}")
+
+            }
+            when {
+                base64.isEmpty() -> {
+                    Log.d("Tag", "pathlist is empty")
+                }
+
+                else -> {
+                    // Iterate over the pathList and set values in Firebase Database
+                    base64.forEach { base64 ->
+                        // Check if filePath is not null or empty
+                        base64.let { base64 ->
+                            val id =
+                                FirebaseDatabase.getInstance().getReference()
+                                    .push().getKey()
+                            val mDatabase = FirebaseDatabase.getInstance()
+                            val mDbRef =
+                                mDatabase.getReference("ImageDb").child(id!!)
+                            mDbRef.setValue(base64)
+
+                        }
+
+                    }
+                }
+            }
+
+        }
+    }
 }
 
 
@@ -667,8 +474,6 @@ fun YourScreenContent2(expenseItemEntity: ExpenseItemEntity, onDismiss: () -> Un
     }
 
 }
-
-
 
 
 //import android.os.Build
@@ -778,68 +583,6 @@ fun YourScreenContent2(expenseItemEntity: ExpenseItemEntity, onDismiss: () -> Un
 //    }
 //}
 //
-//@RequiresApi(Build.VERSION_CODES.O)
-//@Composable
-//fun ExpenseItem(item: ExpenseItemEntity) {
-//    // Your ExpenseTemplate composable or UI for displaying an expense item
-//    ExpenseTemplate(
-//        initialExpenseName = item.expenseName,
-//        initialExpenseAmount = item.expenseAmount,
-//        initialDateTime = item.date,
-//        initialExpenseDescription = item.expenseDescription ?: ""
-//    )
-//}
-//
-//@Composable
-//fun ActionButton(onClick: () -> Unit) {
-//    ExtendedFloatingActionButton(
-//        onClick = onClick,
-//        icon = { Icon(Icons.Filled.Edit, "Extended floating action button.") },
-//        text = { Text(text = "Add Expense") },
-//        backgroundColor = Color.Red.copy(alpha = 0.6f),
-//        contentColor = Color.White,
-//    )
-//    Spacer(modifier = Modifier.padding(8.dp))
-//}
-//
-//@RequiresApi(Build.VERSION_CODES.O)
-//@Composable
-//fun YourScreenContent(onDismiss: () -> Unit) {
-//    val visible by remember { mutableStateOf(true) }
-//    AnimatedVisibility(
-//        visible,
-//        enter = expandHorizontally(animationSpec = tween(durationMillis = 300)),
-//        exit = shrinkHorizontally(animationSpec = tween(durationMillis = 300))
-//    ) {
-//        Column(
-//            modifier = Modifier
-//                .padding(horizontal = 16.dp)
-//                .wrapContentSize(),
-//            verticalArrangement = Arrangement.Center,
-//            horizontalAlignment = Alignment.CenterHorizontally
-//        ) {
-//            ExpenseDialog(onDismiss)
-//        }
-//    }
-//
-//}
-
-
-//@Preview
-//@Composable
-//fun Logo(){
-//
-//    Row(modifier = Modifier.fillMaxWidth()) {
-//        Image(
-//            painterResource(id = R.drawable.ic_logoo),
-//            contentDescription = "null",
-//            contentScale = ContentScale.Crop,
-//            modifier = Modifier
-//                .size(height = 120.dp, width = 800.dp)
-//        )
-//    }
-//
-//}
 
 fun deleteAllDataFromFirebase(id: String) {
     val database = FirebaseDatabase.getInstance()
