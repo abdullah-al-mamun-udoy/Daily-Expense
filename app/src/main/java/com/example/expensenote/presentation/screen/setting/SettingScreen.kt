@@ -1,5 +1,6 @@
 package com.example.expensenote.presentation.screen.setting
 
+
 import android.Manifest
 import android.app.Activity
 import android.content.ContentUris
@@ -13,14 +14,15 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.TextField
 import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,7 +30,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,7 +42,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
@@ -49,16 +50,15 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import coil.compose.rememberImagePainter
-import coil.transform.CircleCropTransformation
 import com.example.expensenote.R
 import com.example.expensenote.constant.Constant
 import com.example.expensenote.ui.theme.appColor
-import com.example.expensenote.util.CommonExtension
+import com.example.expensenote.util.CommonExtension.getVersionName
 import com.example.expensenote.viewmodel.ExpenseItemViewModel
 import com.google.accompanist.coil.rememberCoilPainter
 import kotlinx.coroutines.launch
 import java.util.Random
+
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,11 +97,6 @@ fun SettingScreen(
     }
 
     val context = LocalContext.current
-
-
-
-
-
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column() {
@@ -281,6 +276,24 @@ fun SettingScreen(
                     fontSize = 20.sp
                 )
             }
+            Row(
+                modifier = Modifier
+                    .padding(start = 20.dp, top = 12.dp)
+                    .clickable {
+                        coroutineScope.launch {
+                            viewmodel.deleteAllExpenseItem()
+                        }
+
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                Text(
+                    text =  "Version ${context.getVersionName()}",
+                    modifier = Modifier.padding(start = 4.dp),
+                    fontSize = 20.sp
+                )
+            }
 
             Row {
 
@@ -305,19 +318,19 @@ fun SettingScreen(
 
 
 // Display the image using Image composable
-                Image(
-                    modifier = Modifier
-                        .width(400.dp)
-                        .height(250.dp)
-                        .align(Alignment.CenterVertically),
-                    painter = rememberImagePainter(
-                        data = selectedImageUri,
-                        builder = {
-                            transformations(CircleCropTransformation())
-                        }
-                    ),
-                    contentDescription = stringResource(id = R.string.app_name)
-                )
+//                Image(
+//                    modifier = Modifier
+//                        .width(400.dp)
+//                        .height(250.dp)
+//                        .align(Alignment.CenterVertically),
+//                    painter = rememberImagePainter(
+//                        data = selectedImageUri,
+//                        builder = {
+//                            transformations(CircleCropTransformation())
+//                        }
+//                    ),
+//                    contentDescription = stringResource(id = R.string.app_name)
+//                )
 
 //                Log.d("Tag", "selectedImageUri $selectedImageUri")
 
@@ -459,3 +472,4 @@ fun contentUriToFilePath(context: Context, contentUri: Uri): String? {
     cursor?.close()
     return filePath
 }
+

@@ -2,6 +2,7 @@ package com.example.expensenote.util
 
 import android.content.ContentUris
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
@@ -211,6 +212,15 @@ object CommonExtension {
         }
 
         return allDirectories
+    }
+
+    fun Context.getVersionName(): String {
+        return try {
+            val packageInfo = this.packageManager.getPackageInfo(this.packageName, 0)
+            packageInfo.versionName
+        } catch (e: PackageManager.NameNotFoundException) {
+            "Unknown"
+        }
     }
 
 
