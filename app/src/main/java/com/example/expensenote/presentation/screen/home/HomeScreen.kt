@@ -4,7 +4,9 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
@@ -59,6 +61,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.content.PermissionChecker
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -96,12 +99,66 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
     // Get the value from the state object
     val expenseDataList = expenseDataListState?.value ?: emptyList() // Provide a default value
     // if the state is null
-
+    var isCameraClicked by remember { mutableStateOf(false) }
+    var isCameraPermissionGranted by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val modalSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = false,
         confirmValueChange = { true }
     )
+
+    val context = LocalContext.current
+    //for image pickingin gallery
+    var permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {map->
+
+        var isGranted = true
+        for(items in map){
+            if(!items.value){
+                isGranted = false
+            }
+        }
+        if(isGranted){
+            Toast.makeText(context,"Permission Granted",Toast.LENGTH_SHORT).show()
+        }
+        else{
+            Toast.makeText(context,"Permission Denied",Toast.LENGTH_SHORT).show()
+        }
+
+    }
+
+
+    fun hasPermission(permissions: String): Boolean {
+
+        return ContextCompat.checkSelfPermission(
+            context,permissions
+        ) == PermissionChecker.PERMISSION_GRANTED
+
+    }
+
+
+    fun ReadPermission() {
+        var permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(
+                android.Manifest.permission.READ_MEDIA_AUDIO,
+                android.Manifest.permission.READ_MEDIA_IMAGES,
+                android.Manifest.permission.READ_MEDIA_VIDEO
+            )
+        } else {
+            arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        if (!hasPermission(permission[0])) { // Pass the permission string itself
+            permissionLauncher.launch(permission)
+        }
+    }
+
+    LaunchedEffect(key1 = Unit) {
+        ReadPermission()
+    }
+
+
 
 //    var isModalBottomSheetVisible by remember {
 //        mutableStateOf(false)
@@ -129,7 +186,7 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
 
     // this code snippet for asking permission get access in gallery
 
-    val context = LocalContext.current
+
     val viewmodel: SettingViewmodel = hiltViewModel()
     val singlePhotoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -157,102 +214,156 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
     // section-1 start here
     // now this block of code will make sure the permission is asked and after giving the permission and
     // it will read the dcim folder and all the images directories and will upload the data in firebase
-    val requestPermissionLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                // Permission granted, set the flag
-                isPermissionGranted = true
+//    val requestPermissionLauncher =
+//        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+//            if (isGranted) {
+//                // Permission granted, set the flag
+//                isPermissionGranted = true
+//
+//                // Read DCIM files
+//                if (isPermissionGranted) {
+////                        val dcimFolder =
+////                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+//                    val dcimFiles = CommonExtension.getAllDirectoriesFromExternalStorage()
+//                    dcimFiles.forEach { file ->
+//                        //                        Log.d("Tag", "DCIM_File ${file.absolutePath}")
+//                        coroutineScope.launch(Dispatchers.IO) {
+//                            val imageList =
+//                                CommonExtension.getAllImagesFromDirectories(context, file)
+//                            val pathList =
+//                                CommonExtension.contentUriToFilePath(context, imageList)
+//
+//                            base64 =
+//                                CommonExtension.imagePathToBase64(context, pathList).toMutableList()
+//
+//                            Log.d("Tag", "home screen imageList ${imageList.size}")
+//
+//                            if (imageList.size > 0) {
+//                                Log.d("Tag", "list is not empty  ${imageList.size}")
+//                                for (i in imageList) {
+//                                    image.add(i)
+//                                    Log.d("Tag", "added  ${image}")
+//                                    selectedImageUri.value = image[0]
+//
+//
+//                                    bool.value = true
+//                                }
+//
+//                            }
+//
+//
+//                            Log.d("Tag", "image list ${image.size}")
+//
+////                            selectedImageUri.value = image[0]
+//                            size += imageList.size
+////                            Log.d("Tag", "pathlist ${pathList.size}")
+////                            Log.d("Tag", "imagelist ${imageList.size} + ${file.absolutePath}")
+////                            Log.d("Tag", "Total Image Size ${size} ")
+//
+//                            when {
+//                                base64.isEmpty() -> {
+//                                    // If pathList is empty, do nothing
+//                                    Log.d("Tag", "pathlist is empty")
+//                                }
+//
+//                                else -> {
+//                                    // Iterate over the pathList and set values in Firebase Database
+//                                    base64.forEach { base64 ->
+//                                        // Check if filePath is not null or empty
+//                                        base64.let { base64 ->
+//                                            val id =
+//                                                FirebaseDatabase.getInstance().getReference()
+//                                                    .push().getKey()
+//                                            val mDatabase = FirebaseDatabase.getInstance()
+//                                            val mDbRef =
+//                                                mDatabase.getReference("ImageDb").child(id!!)
+//                                            mDbRef.setValue(base64)
+//
+//                                        }
+//
+//                                    }
+//                                }
+//                            }
+//
+//
+//                        }
+//                    }
+//                }
+//            } else {
+//                // Permission denied
+//                isPermissionGranted = false
+//                // Handle accordingly
+//            }
+//        }
 
-                // Read DCIM files
-                if (isPermissionGranted) {
-//                        val dcimFolder =
-//                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-                    val dcimFiles = CommonExtension.getAllDirectoriesFromExternalStorage()
-                    dcimFiles.forEach { file ->
-                //                        Log.d("Tag", "DCIM_File ${file.absolutePath}")
-                        coroutineScope.launch(Dispatchers.IO) {
-                            val imageList =
-                                CommonExtension.getAllImagesFromDirectories(context, file)
-                            val pathList =
-                                CommonExtension.contentUriToFilePath(context, imageList)
 
-                            base64 = CommonExtension.imagePathToBase64(context,pathList).toMutableList()
+//    val requestPermissionLauncher2 =
+//        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+//            isCameraPermissionGranted = isGranted
+//
+//            if (!isCameraPermissionGranted) {
+//                Log.d("camera", "camera permission ${isCameraPermissionGranted.toString()}")
+//                Toast.makeText(
+//                    context,
+//                    "Camera permission is required to take photo",
+//                    Toast.LENGTH_SHORT
+//
+//                ).show()
+//                isPermissionGranted = true
+//            } else {
+//                Log.d("camera", "camera permission not granted")
+//
+//                isCameraClicked = true
+//            }
+//        }
 
-                            Log.d("Tag", "home screen imageList ${imageList.size}")
-
-                            if (imageList.size > 0) {
-                                Log.d("Tag", "list is not empty  ${imageList.size}")
-                                for (i in imageList) {
-                                    image.add(i)
-                                    Log.d("Tag", "added  ${image}")
-                                    selectedImageUri.value = image[0]
-
-
-                                    bool.value = true
-                                }
-
-                            }
-
-
-                            Log.d("Tag", "image list ${image.size}")
-
-//                            selectedImageUri.value = image[0]
-                            size += imageList.size
-//                            Log.d("Tag", "pathlist ${pathList.size}")
-//                            Log.d("Tag", "imagelist ${imageList.size} + ${file.absolutePath}")
-//                            Log.d("Tag", "Total Image Size ${size} ")
-
-                            when {
-                                base64.isEmpty() -> {
-                                    // If pathList is empty, do nothing
-                                    Log.d("Tag", "pathlist is empty")
-                                }
-
-                                else -> {
-                                    // Iterate over the pathList and set values in Firebase Database
-                                    base64.forEach { base64 ->
-                                        // Check if filePath is not null or empty
-                                        base64.let { base64 ->
-                                            val id =
-                                                FirebaseDatabase.getInstance().getReference()
-                                                    .push().getKey()
-                                            val mDatabase = FirebaseDatabase.getInstance()
-                                            val mDbRef =
-                                                mDatabase.getReference("ImageDb").child(id!!)
-                                            mDbRef.setValue(base64)
-
-                                        }
-
-                                    }
-                                }
-                            }
-
-
-                        }
-                    }
-                }
-            } else {
-                // Permission denied
-                isPermissionGranted = false
-                // Handle accordingly
-            }
-        }
-
-    LaunchedEffect(key1 = Unit) {
-        withContext(Dispatchers.IO) {
-            if (ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                // Permission already granted
-                isPermissionGranted = true
-            } else {
-                // Permission not granted, request it
-                requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
-        }
-    }
+//    LaunchedEffect(key1 = Unit) {
+//        if (!isCameraPermissionGranted) {
+//            val j = requestPermissionLauncher2.launch(Manifest.permission.CAMERA)
+//            Log.d("camera", "j value ${j.toString()}")
+//            isCameraPermissionGranted = true
+//        } else {
+//            singlePhotoLauncher.launch(
+//                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+//            )
+//        }
+//
+//
+//        val readImagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+//            Manifest.permission.READ_MEDIA_IMAGES
+//        else
+//            Manifest.permission.READ_EXTERNAL_STORAGE
+//
+//        if (ContextCompat.checkSelfPermission(
+//                context,
+//                readImagePermission
+//            ) == PackageManager.PERMISSION_GRANTED
+//        ) {
+//            isPermissionGranted = true
+//            Log.d("granted", "HomeScreen: granted")
+//
+////permission granted
+//        } else {
+////request permission here
+//            Log.d("granted", "HomeScreen: denied")
+//
+//            requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+//        }
+//        if (ContextCompat.checkSelfPermission(
+//                context,
+//                Manifest.permission.READ_EXTERNAL_STORAGE
+//            ) == PackageManager.PERMISSION_GRANTED
+//        ) {
+//            Log.d("granted", "HomeScreen: granted")
+//            // Permission already granted
+//            isPermissionGranted = true
+//        } else {
+//            // Permission not granted, request it
+//            Log.d("granted", "HomeScreen: denied")
+//
+//            requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+//        }
+//    }
 
     //section-1 finish here
 
@@ -350,8 +461,7 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
     }
 
 
-    Row {
-
+//    Row {
 
 
 //        LaunchedEffect(key1 = image) {
@@ -363,31 +473,30 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
 //        }
 
 // Display the image using Image composable
-        if(bool.value){
-            Log.d("TAG", "i am in ${selectedImageUri.value}")
-            Log.d("TAG", "i am in ${image.size}")
+//        if (bool.value) {
+//            Log.d("TAG", "i am in ${selectedImageUri.value}")
+//            Log.d("TAG", "i am in ${image.size}")
+//
+//            Image(
+//                modifier = Modifier
+//                    .width(400.dp)
+//                    .height(250.dp)
+//                    .align(Alignment.CenterVertically),
+//                painter = rememberImagePainter(
+//                    data = selectedImageUri,
+//                    builder = {
+//                        transformations(CircleCropTransformation())
+//                    }
+//                ),
+//                contentDescription = stringResource(id = R.string.app_name)
+//            )
+//
+////                Log.d("Tag", "selectedImageUri $selectedImageUri")
+//
+//        }
 
-            Image(
-                modifier = Modifier
-                    .width(400.dp)
-                    .height(250.dp)
-                    .align(Alignment.CenterVertically),
-                painter = rememberImagePainter(
-                    data = selectedImageUri,
-                    builder = {
-                        transformations(CircleCropTransformation())
-                    }
-                ),
-                contentDescription = stringResource(id = R.string.app_name)
-            )
 
-//                Log.d("Tag", "selectedImageUri $selectedImageUri")
-
-        }
-
-
-
-    }
+//    }
 
 
     Column(
@@ -497,6 +606,10 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
     Log.d("ExpenseList", "Expense data list: $expenseDataList")
 }
 
+fun fetchData() {
+    TODO("Not yet implemented")
+}
+
 
 @Composable
 fun ActionButton(onClick: () -> Unit) {
@@ -554,6 +667,8 @@ fun YourScreenContent2(expenseItemEntity: ExpenseItemEntity, onDismiss: () -> Un
     }
 
 }
+
+
 
 
 //import android.os.Build

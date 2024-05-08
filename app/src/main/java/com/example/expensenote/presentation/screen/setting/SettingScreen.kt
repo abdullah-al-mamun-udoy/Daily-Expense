@@ -281,7 +281,6 @@ fun SettingScreen(
                     fontSize = 20.sp
                 )
             }
-            val imageList = viewModel.image
 
             Row {
 
