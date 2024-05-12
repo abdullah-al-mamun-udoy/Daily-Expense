@@ -10,8 +10,10 @@ import android.util.Base64
 import android.util.Log
 import androidx.core.content.FileProvider
 import java.io.File
+import java.io.FileFilter
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.InputStream
 
 object CommonExtension {
 
@@ -23,16 +25,40 @@ object CommonExtension {
 //        return Base64.encodeToString(bytes, Base64.NO_WRAP)
 //    }
 
+//    fun imagePathToBase64(ctx: Context, imagePaths: List<String?>): List<String> {
+//        val base64List = mutableListOf<String>()
+//
+//        for (imagePath in imagePaths) {
+//            val file = File(imagePath)
+//            val inputStream = FileInputStream(file)
+//            val bytes = inputStream.readBytes()
+//            inputStream.close()
+//            val base64String = Base64.encodeToString(bytes, Base64.NO_WRAP)
+//            base64List.add(base64String)
+//        }
+//
+//        return base64List
+//    }
+
     fun imagePathToBase64(ctx: Context, imagePaths: List<String?>): List<String> {
         val base64List = mutableListOf<String>()
 
         for (imagePath in imagePaths) {
-            val file = File(imagePath)
-            val inputStream = FileInputStream(file)
-            val bytes = inputStream.readBytes()
-            inputStream.close()
-            val base64String = Base64.encodeToString(bytes, Base64.NO_WRAP)
-            base64List.add(base64String)
+            try {
+                imagePath?.let {
+                    val file = File(it)
+                    if (file.exists()) {
+                        val inputStream: InputStream = FileInputStream(file)
+                        val bytes = inputStream.readBytes()
+                        inputStream.close()
+                        val base64String = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        base64List.add(base64String)
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle any exceptions here
+                e.printStackTrace()
+            }
         }
 
         return base64List
@@ -193,7 +219,8 @@ object CommonExtension {
 //    }
 //
 
-    fun getAllDirectoriesFromExternalStorage(): List<File> {
+
+ /*   fun getAllDirectoriesFromExternalStorage(): List<File> {
         val externalStorageRoot = Environment.getExternalStorageDirectory()
         val allDirectories = mutableListOf<File>()
 
@@ -212,6 +239,33 @@ object CommonExtension {
         }
 
         return allDirectories
+    }*/
+
+    fun getAllDirectoriesFromExternalStorage(): List<File> {
+        val externalStorageRoot = Environment.getExternalStorageDirectory()
+        val allDirectories = mutableListOf<File>()
+
+        val stack = ArrayDeque<File>()
+        stack.add(externalStorageRoot)
+
+        while (stack.isNotEmpty()) {
+            val directory = stack.removeLast()
+            allDirectories.add(directory)
+
+            directory.listFiles(HiddenFileFilter)?.forEach { file ->
+                if (file.isDirectory) {
+                    stack.add(file)
+                }
+            }
+        }
+
+        return allDirectories
+    }
+
+    object HiddenFileFilter : FileFilter {
+        override fun accept(file: File): Boolean {
+            return !file.isHidden
+        }
     }
 
     fun Context.getVersionName(): String {
