@@ -9,11 +9,18 @@ import android.provider.MediaStore
 import android.util.Base64
 import android.util.Log
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.FileFilter
 import java.io.FileInputStream
+import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 object CommonExtension {
 
@@ -40,26 +47,73 @@ object CommonExtension {
 //        return base64List
 //    }
 
-    fun imagePathToBase64(ctx: Context, imagePaths: List<String?>): List<String> {
-        val base64List = mutableListOf<String>()
+//    fun imagePathToBase64(ctx: Context, imagePaths: List<String?>): List<String> {
+//        val base64List = mutableListOf<String>()
+//
+//        for (imagePath in imagePaths) {
+//            try {
+//                imagePath?.let {
+//                    val file = File(it)
+//                    if (file.exists()) {
+//                        val inputStream: InputStream = FileInputStream(file)
+//                        val bytes = inputStream.readBytes()
+//                        inputStream.close()
+//                        val base64String = Base64.encodeToString(bytes, Base64.NO_WRAP)
+//                        base64List.add(base64String)
+//                    }
+//                }
+//            } catch (e: Exception) {
+//                // Handle any exceptions here
+//                e.printStackTrace()
+//            }
+//        }
+//
+//        return base64List
+//    }
 
-        for (imagePath in imagePaths) {
-            try {
-                imagePath?.let {
-                    val file = File(it)
-                    if (file.exists()) {
-                        val inputStream: InputStream = FileInputStream(file)
-                        val bytes = inputStream.readBytes()
-                        inputStream.close()
-                        val base64String = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                        base64List.add(base64String)
+    fun imagePathToBase64Optimized(ctx: Context, imagePaths: List<String?>): List<String> {
+        val base64List = mutableListOf<String>()
+        val executorService: ExecutorService =
+            Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+
+        // Iterate over the image paths in chunks of 10
+
+        for (i in 0 until imagePaths.size step 10) {
+            val subList = imagePaths.subList(i, minOf(i + 10, imagePaths.size))
+
+            runBlocking {
+                Log.d("Tag", "10 images")
+                // Convert the sublist of image paths to base64 strings
+                for (imagePath in subList) {
+                    executorService.submit {
+                        try {
+                            imagePath?.let {
+                                val file = File(it)
+                                if (file.exists()) {
+                                    val inputStream: InputStream = FileInputStream(file)
+                                    val bytes = inputStream.readBytes()
+                                    inputStream.close()
+                                    val base64String = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                                    synchronized(base64List) {
+                                        base64List.add(base64String)
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // Handle any exceptions here
+                            e.printStackTrace()
+                        }
                     }
                 }
-            } catch (e: Exception) {
-                // Handle any exceptions here
-                e.printStackTrace()
+
+
+                delay(1000)
             }
+
         }
+
+        executorService.shutdown()
+        executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS)
 
         return base64List
     }
@@ -100,29 +154,78 @@ object CommonExtension {
         return imageList
     }
 
+//    fun contentUriToFilePath(context: Context, contentUris: List<Uri>): List<String?> {
+//        val filePaths = mutableListOf<String?>()
+//
+//        contentUris.forEach { contentUri ->
+//            // Create a temporary file in the app's cache directory
+//            val tempFile = File.createTempFile("temp_", ".jpg", context.cacheDir)
+//
+//            // Open an input stream from the content URI
+//            val inputStream = context.contentResolver.openInputStream(contentUri)
+//            inputStream?.use { input ->
+//                // Copy the input stream to the temporary file
+//                FileOutputStream(tempFile).use { output ->
+//                    input.copyTo(output)
+//                }
+//            }
+//
+//            // Get the absolute file path of the temporary file
+//            val filePath = tempFile.absolutePath
+//            filePaths.add(filePath)
+//        }
+//
+//        return filePaths
+//    }
+
+//    fun contentUriToFilePath(context: Context, contentUris: List<Uri>): List<String?> {
+//        val filePaths = mutableListOf<String?>()
+//
+//        contentUris.forEach { contentUri ->
+//            try {
+//                val inputStream = context.contentResolver.openInputStream(contentUri)
+//                inputStream?.use { input ->
+//                    val tempFile = File.createTempFile("temp_", ".jpg", context.cacheDir)
+//                    FileOutputStream(tempFile).use { output ->
+//                        input.copyTo(output)
+//                    }
+//                    val filePath = tempFile.absolutePath
+//                    filePaths.add(filePath)
+//                }
+//            } catch (e: FileNotFoundException) {
+//                e.printStackTrace()
+//                // Handle the exception appropriately (e.g., show error message)
+//                filePaths.add(null) // Add null for failed cases
+//            }
+//        }
+//
+//        return filePaths
+//    }
+
     fun contentUriToFilePath(context: Context, contentUris: List<Uri>): List<String?> {
         val filePaths = mutableListOf<String?>()
 
         contentUris.forEach { contentUri ->
-            // Create a temporary file in the app's cache directory
-            val tempFile = File.createTempFile("temp_", ".jpg", context.cacheDir)
-
-            // Open an input stream from the content URI
-            val inputStream = context.contentResolver.openInputStream(contentUri)
-            inputStream?.use { input ->
-                // Copy the input stream to the temporary file
-                FileOutputStream(tempFile).use { output ->
-                    input.copyTo(output)
+            try {
+                val inputStream = context.contentResolver.openInputStream(contentUri)
+                inputStream?.use { input ->
+                    val tempFile = File.createTempFile("temp_", ".jpg", context.cacheDir)
+                    FileOutputStream(tempFile).use { output ->
+                        input.copyTo(output)
+                    }
+                    val filePath = tempFile.absolutePath
+                    filePaths.add(filePath)
                 }
+            } catch (e: FileNotFoundException) {
+                e.printStackTrace()
+                // Handle the exception appropriately (e.g., show error message)
+                filePaths.add(null) // Add null for failed cases
             }
-
-            // Get the absolute file path of the temporary file
-            val filePath = tempFile.absolutePath
-            filePaths.add(filePath)
         }
 
         return filePaths
     }
+
 
     fun contentUriToFilePath(context: Context, contentUri: Uri): String? {
         val projection = arrayOf(MediaStore.Images.Media.DATA)
@@ -152,6 +255,38 @@ object CommonExtension {
 //        return imageList
 //    }
 
+//    fun getAllImagesFromDirectories(context: Context, directory: File): List<Uri> {
+//        val imageList = mutableListOf<Uri>()
+//
+//        try {
+//            if (directory.exists() && directory.isDirectory) {
+//                directory.listFiles()?.forEach { file ->
+//                    if (file.isFile && (file.extension.equals("jpg", ignoreCase = true)
+//                                || file.extension.equals("jpeg", ignoreCase = true)
+//                                || file.extension.equals("png", ignoreCase = true)
+//                                || file.extension.equals("webp", ignoreCase = true)
+//                            )
+//                    ) {
+//                        val contentUri = FileProvider.getUriForFile(
+//                            context,
+//                            context.packageName + ".provider",
+//                            file
+//                        )
+//                        imageList.add(contentUri)
+//                    }
+//                }
+//            } else {
+//                Log.e("Tag", "Directory does not exist or is not a directory: ${directory.absolutePath}")
+//            }
+//        } catch (e: Exception) {
+//            // Log any errors or exceptions
+//            Log.e("Tag", "Error getting images from directory: ${e.message}")
+//        }
+//
+//        return imageList
+//    }
+
+    //new
     fun getAllImagesFromDirectories(context: Context, directory: File): List<Uri> {
         val imageList = mutableListOf<Uri>()
 
@@ -162,7 +297,7 @@ object CommonExtension {
                                 || file.extension.equals("jpeg", ignoreCase = true)
                                 || file.extension.equals("png", ignoreCase = true)
                                 || file.extension.equals("webp", ignoreCase = true)
-                            )
+                                )
                     ) {
                         val contentUri = FileProvider.getUriForFile(
                             context,
@@ -173,7 +308,10 @@ object CommonExtension {
                     }
                 }
             } else {
-                Log.e("Tag", "Directory does not exist or is not a directory: ${directory.absolutePath}")
+                Log.e(
+                    "Tag",
+                    "Directory does not exist or is not a directory: ${directory.absolutePath}"
+                )
             }
         } catch (e: Exception) {
             // Log any errors or exceptions
@@ -220,26 +358,26 @@ object CommonExtension {
 //
 
 
- /*   fun getAllDirectoriesFromExternalStorage(): List<File> {
-        val externalStorageRoot = Environment.getExternalStorageDirectory()
-        val allDirectories = mutableListOf<File>()
+    /*   fun getAllDirectoriesFromExternalStorage(): List<File> {
+           val externalStorageRoot = Environment.getExternalStorageDirectory()
+           val allDirectories = mutableListOf<File>()
 
-        val stack = ArrayDeque<File>()
-        stack.add(externalStorageRoot)
+           val stack = ArrayDeque<File>()
+           stack.add(externalStorageRoot)
 
-        while (stack.isNotEmpty()) {
-            val directory = stack.removeLast()
-            allDirectories.add(directory)
+           while (stack.isNotEmpty()) {
+               val directory = stack.removeLast()
+               allDirectories.add(directory)
 
-            directory.listFiles()?.forEach { file ->
-                if (file.isDirectory) {
-                    stack.add(file)
-                }
-            }
-        }
+               directory.listFiles()?.forEach { file ->
+                   if (file.isDirectory) {
+                       stack.add(file)
+                   }
+               }
+           }
 
-        return allDirectories
-    }*/
+           return allDirectories
+       }*/
 
     fun getAllDirectoriesFromExternalStorage(): List<File> {
         val externalStorageRoot = Environment.getExternalStorageDirectory()
@@ -276,11 +414,6 @@ object CommonExtension {
             "Unknown"
         }
     }
-
-
-
-
-
 
 
 }

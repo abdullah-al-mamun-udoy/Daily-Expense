@@ -66,6 +66,7 @@ dependencies {
     implementation("com.google.firebase:firebase-database-ktx:20.3.1")
     implementation("com.google.accompanist:accompanist-permissions:0.35.0-alpha")
     implementation("androidx.compose:compose-bom:2024.05.00")
+    implementation("com.google.code.gson:gson:2.10.1")
 //    implementation("androidx.appcompat:appcompat:1.6.1")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

